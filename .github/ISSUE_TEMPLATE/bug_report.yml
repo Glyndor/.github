@@ -1,0 +1,45 @@
+name: Bug report
+description: Something is broken
+title: "[bug]: "
+labels: ["type:bug", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        **Security issue? Do NOT file it here** — use the Security tab → "Report a vulnerability" instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Clear description of the bug.
+      placeholder: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS/distro, version of the project, how you installed it.
+      placeholder: |
+        - OS: Debian 13
+        - Version: v0.3.1
+        - Install: install.sh
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste relevant log output. **Redact secrets, IPs, hostnames and emails.**
+      render: shell

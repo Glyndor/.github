@@ -1,0 +1,114 @@
+name: Rust CI (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing the Cargo workspace
+        type: string
+        default: "."
+      coverage-threshold:
+        description: Minimum line coverage percentage (0 disables the gate)
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Format & lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ${{ inputs.working-directory }}/target
+          key: rust-lint-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: rust-lint-${{ runner.os }}-
+
+      - name: rustfmt
+        run: cargo fmt --all --check
+
+      - name: clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ${{ inputs.working-directory }}/target
+          key: rust-test-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: rust-test-${{ runner.os }}-
+
+      - name: Tests
+        run: cargo test --all-features --workspace
+
+  coverage:
+    name: Coverage
+    if: inputs.coverage-threshold > 0
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component llvm-tools
+          rustup default stable
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/bin
+            ${{ inputs.working-directory }}/target
+          key: rust-cov-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: rust-cov-${{ runner.os }}-
+
+      - name: Install cargo-llvm-cov
+        run: command -v cargo-llvm-cov >/dev/null || cargo install cargo-llvm-cov --locked
+
+      - name: Coverage gate
+        run: |
+          cargo llvm-cov --workspace --all-features --summary-only --json --output-path coverage.json
+          PCT=$(python3 -c "import json; print(json.load(open('coverage.json'))['data'][0]['totals']['lines']['percent'])")
+          echo "### Coverage: ${PCT}% (threshold: ${{ inputs.coverage-threshold }}%)" >> "$GITHUB_STEP_SUMMARY"
+          python3 - "$PCT" "${{ inputs.coverage-threshold }}" <<'EOF'
+          import sys
+          pct, threshold = float(sys.argv[1]), float(sys.argv[2])
+          sys.exit(0 if pct >= threshold else 1)
+          EOF
