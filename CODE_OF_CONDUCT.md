@@ -3,7 +3,7 @@
 ## Our Standards
 
 Glyndor projects are technical projects. Interactions here — issues, PRs,
-discussions, comments — should be focused, respectful, and constructive.
+comments — should be focused, respectful, and constructive.
 
 **Expected behavior:**
 
@@ -30,7 +30,7 @@ contributors who violate these standards.
 ## Scope
 
 This Code of Conduct applies to all project spaces — GitHub issues, PRs,
-discussions, and any other official project channels.
+and any other official project channels.
 
 ---
 
