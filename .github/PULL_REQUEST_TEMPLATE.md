@@ -17,7 +17,8 @@
 ## Checklist
 
 - [ ] Targets `develop` (not `main`)
-- [ ] Commits are signed
+- [ ] Commits are signed off (DCO, `git commit -s`)
+- [ ] Labels applied (`type:`, `prio:`, `effort:`, `area:` where applicable)
 - [ ] No secrets, IPs, or credentials in code or logs
 - [ ] Docs updated if behavior changed
 
