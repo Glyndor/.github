@@ -11,6 +11,10 @@ on:
         description: Minimum line coverage percentage (0 disables the gate)
         type: number
         default: 0
+      extra-test-os:
+        description: JSON array of extra runner images to also run tests on (e.g. '["macos-latest"]')
+        type: string
+        default: "[]"
 
 permissions:
   contents: read
@@ -49,6 +53,38 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ${{ inputs.working-directory }}/target
+          key: rust-test-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: rust-test-${{ runner.os }}-
+
+      - name: Tests
+        run: cargo test --all-features --workspace
+
+  test-extra:
+    name: Test (${{ matrix.os }})
+    if: inputs.extra-test-os != '[]'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.extra-test-os) }}
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
