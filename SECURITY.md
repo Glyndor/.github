@@ -1,35 +1,61 @@
 # Security Policy
 
-Glyndor builds software that manages servers at a low level (ports, SSH, firewall,
-mail). We take every report seriously.
+Glyndor builds software that manages servers at a low level (ports, SSH,
+firewall, containers, mail). We take every report seriously.
 
 ## Reporting a Vulnerability
 
-**Do not open a public issue for security problems.**
+**Do not open a public GitHub issue for security vulnerabilities.**
 
-Use GitHub's private vulnerability reporting on the affected repository:
+Report through GitHub's private vulnerability disclosure on the affected
+repository: **Security tab → Report a vulnerability**.
 
-1. Go to the repository's **Security** tab.
-2. Click **Report a vulnerability**.
-3. Fill in the advisory form with as much detail as possible (affected version,
-   reproduction steps, impact).
+Include:
 
-Reports go directly and privately to the maintainers.
+- Repository and component affected
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (optional)
 
-## What to Expect
+Responsible disclosure is appreciated. If the report leads to a fix, you'll be
+credited in the advisory and release notes (unless you prefer anonymity).
 
-| Stage | Target time |
-|---|---|
-| First response | 72 hours |
-| Triage decision | 7 days |
-| Fix or mitigation plan | depends on severity — critical issues are prioritized over all other work |
+## Response Timeline
 
-If the report is accepted we will keep you informed through the advisory thread
-and credit you in the published advisory unless you prefer otherwise.
+| Stage | Target |
+|-------|--------|
+| Acknowledgement | 48 hours |
+| Initial assessment | 5 business days |
+| Fix + release | Depends on severity |
+
+**Critical** (RCE, auth bypass, crypto break, privilege escalation) — target
+fix within 7 days.
+**High** (data leak, firewall bypass, replay attack) — target fix within
+14 days.
+**Medium / Low** — addressed in the next regular release.
+
+## Supported Versions
+
+Only the latest release of each project is supported. Projects with
+auto-update receive fixes automatically; for the rest, update to the latest
+release before reporting.
 
 ## Scope
 
-All public repositories in the Glyndor organization are in scope.
+**In scope:** all public repositories in the Glyndor organization — in
+particular authentication and session handling, command/transport integrity,
+firewall and tunnel handling, container isolation, update pipelines, injection
+of any kind.
 
-Out of scope: denial of service through resource exhaustion on your own
-installation, issues requiring physical access, and social engineering.
+**Out of scope:**
+
+- Vulnerabilities requiring physical access to the server
+- Issues in third-party dependencies (report upstream — we track them via
+  Dependabot and audit tooling)
+- Theoretical attacks with no practical exploit path
+- Denial of service through resource exhaustion on your own installation
+- Social engineering
+
+Some repositories document their security architecture for threat modeling —
+check the repository's `docs/` directory.
