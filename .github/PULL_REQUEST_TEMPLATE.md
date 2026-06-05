@@ -1,18 +1,26 @@
-## What
+## Summary
 
-<!-- What does this PR change? One or two sentences. -->
+<!-- What does this PR do? 1-3 bullet points. -->
 
-## Why
+## Changes
 
-<!-- Link the issue this closes: Closes #123 -->
+<!-- List the main changes made. -->
 
-## How
+## Test plan
 
-<!-- Anything a reviewer should know: design decisions, trade-offs, follow-ups. -->
+<!-- How was this tested? Check all that apply. -->
+
+- [ ] Unit / integration tests pass
+- [ ] Lint and formatting pass locally
+- [ ] Tested on a real VM/VPS (required for installer, firewall, tunnel or container changes)
 
 ## Checklist
 
 - [ ] Targets `develop` (not `main`)
-- [ ] CI passes locally (fmt, lint, tests)
+- [ ] Commits are signed
 - [ ] No secrets, IPs, or credentials in code or logs
 - [ ] Docs updated if behavior changed
+
+## Related issues
+
+<!-- Closes #123 -->
