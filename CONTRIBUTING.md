@@ -16,8 +16,8 @@ If you are not (yet) an invited contributor you can still help:
 - **Propose features** through the feature request template. Discussion happens
   in the issue before any code is written.
 
-Unsolicited pull requests from outside collaborators may be closed. Open an
-issue first.
+Pull request creation is restricted to collaborators — if you are not one,
+open an issue instead.
 
 ## Before you start
 
@@ -53,13 +53,17 @@ topic branch ──PR──▶ develop ──PR──▶ main
   ```
 
 - Subject ≤ 50 characters. Body only when the "why" isn't obvious from the code.
-- Commits must be **GPG or SSH signed** — unsigned commits are rejected.
+- One commit per logical change on your topic branch — they are reviewed
+  individually in the PR, then squashed on merge.
+- Sign off every commit (`git commit -s`, DCO). Commits on `develop` and `main`
+  are cryptographically signed by GitHub automatically through the merge flow.
 
 ## Pull requests
 
 - Target `develop`, never `main` (release PRs from `develop` to `main` are
   opened by maintainers).
-- Squash merge only — one commit per PR on the target branch.
+- Squash merge into `develop` — one commit per PR, titled with the PR title
+  (Conventional Commits). Release PRs (`develop` → `main`) use a merge commit.
 - CI must pass. Resolve every review thread before merge.
 - Keep PRs focused — one concern per PR. Fill out the PR template completely.
 
