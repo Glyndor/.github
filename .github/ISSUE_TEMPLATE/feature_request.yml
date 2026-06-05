@@ -3,6 +3,12 @@ description: Propose a new feature or improvement
 title: "[feat]: "
 labels: ["type:feature", "status:triage"]
 body:
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the project this affects (e.g. dashboard, installer, CLI).
+      placeholder: dashboard
   - type: textarea
     id: problem
     attributes:
