@@ -15,6 +15,10 @@ on:
         description: JSON array of extra runner images to also run tests on (e.g. '["macos-latest"]')
         type: string
         default: "[]"
+      podman:
+        description: Start rootless Podman socket before running the coverage job (ubuntu-latest only)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -138,7 +142,17 @@ jobs:
       - name: Install cargo-llvm-cov
         run: command -v cargo-llvm-cov >/dev/null || cargo install cargo-llvm-cov --locked
 
+      - name: Start Podman socket
+        if: inputs.podman
+        id: podman-socket
+        run: |
+          systemctl --user start podman.socket
+          until [ -S "/run/user/$(id -u)/podman/podman.sock" ]; do sleep 0.1; done
+          echo "path=unix:///run/user/$(id -u)/podman/podman.sock" >> "$GITHUB_OUTPUT"
+
       - name: Coverage gate
+        env:
+          PODMAN_SOCKET: ${{ steps.podman-socket.outputs.path }}
         run: |
           cargo llvm-cov --workspace --all-features --summary-only --json --output-path coverage.json
           PCT=$(python3 -c "import json; print(json.load(open('coverage.json'))['data'][0]['totals']['lines']['percent'])")
