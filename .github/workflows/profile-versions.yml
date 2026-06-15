@@ -44,6 +44,10 @@ jobs:
 
       - name: Open pull request
         if: steps.refresh.outputs.changed == '1'
+        # GITHUB_TOKEN cannot open PRs under the org policy; supply a scoped
+        # token (fine-grained PAT or App) as VERSION_BOT_TOKEN to enable it.
+        env:
+          GH_TOKEN: ${{ secrets.VERSION_BOT_TOKEN || github.token }}
         run: |
           set -euo pipefail
           branch="chore/profile-versions-${{ github.run_id }}"
