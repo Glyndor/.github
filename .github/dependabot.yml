@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    groups:
+      actions:
+        patterns: ["*"]
+    labels:
+      - "type:deps"
+      - "type:ci"
+    commit-message:
+      prefix: chore
