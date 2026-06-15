@@ -23,7 +23,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       FILE: profile/README.md
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Refresh versions from latest releases
         id: refresh
