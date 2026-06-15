@@ -58,7 +58,7 @@ jobs:
           git commit -s -m "chore: sync release versions in profile README"
           git push origin "$branch"
           gh pr create \
-            --base develop \
+            --base main \
             --head "$branch" \
             --title "chore: sync release versions in profile README" \
             --body "Automated refresh of the release tags shown on the organization profile." \
