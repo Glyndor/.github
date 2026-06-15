@@ -33,7 +33,7 @@ jobs:
           for repo in $repos; do
             tag=$(gh api "repos/$repo/releases/latest" --jq '.tag_name' 2>/dev/null || true)
             [ -z "$tag" ] && continue
-            perl -0pi -e "s/(<!-- v:\Q$repo\E -->).*?(<!-- \/v -->)/\${1}$tag\${2}/s" "$FILE"
+            sed -i "s|<!-- v:$repo -->[^<]*<!-- /v -->|<!-- v:$repo -->$tag<!-- /v -->|" "$FILE"
           done
           if git diff --quiet "$FILE"; then
             echo "changed=0" >> "$GITHUB_OUTPUT"
