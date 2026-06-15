@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/logo.webp" alt="Glyndor" width="140" />
+
 # Glyndor
 
 **Secure, self-hosted infrastructure you actually own.**
