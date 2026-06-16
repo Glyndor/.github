@@ -23,7 +23,8 @@ jobs:
 Available:
 
 - CI: `rust-ci.yml`, `bun-ci.yml`, `go-ci.yml`, `python-ci.yml`, `shell-ci.yml`
-- Rust supply chain: `rust-audit.yml`, `rust-supply-chain.yml`
+- Rust supply chain: `rust-audit.yml`, `rust-supply-chain.yml`, `rust-debian.yml`
+- Release contracts: `installer-contract.yml`
 - Policy gates: `dco.yml`, `main-guard.yml`, `line-limit.yml`
 
 > Actions must be SHA-pinned. Allowed sources: `actions/*`, `Glyndor/*` and
