@@ -1,2 +1,3 @@
-.claude/
-.playwright-mcp/
+# OS
+.DS_Store
+Thumbs.db
