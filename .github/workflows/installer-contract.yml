@@ -1,0 +1,74 @@
+name: Installer contract (reusable)
+
+# Assert install.sh and the release workflow agree on release asset names.
+# Releases are immutable: once a tag ships, its asset names can never change.
+# install.sh downloads `<name>-${OS}-${ARCH}` for the platform it runs on, and
+# the release workflow publishes a fixed list of assets. If the two drift, the
+# installer breaks for users. This catches the drift on the PR, before any tag.
+
+on:
+  workflow_call:
+    inputs:
+      install-script:
+        description: Path to the install script
+        type: string
+        default: "install.sh"
+      release-workflow:
+        description: Path to the release workflow that publishes assets
+        type: string
+        default: ".github/workflows/release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: install.sh ↔ release asset names
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Verify asset names are in sync
+        env:
+          INSTALL_SH: ${{ inputs.install-script }}
+          RELEASE_YML: ${{ inputs.release-workflow }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          from pathlib import Path
+
+          install_sh = Path(os.environ["INSTALL_SH"])
+          release_yml = Path(os.environ["RELEASE_YML"])
+
+          text = install_sh.read_text()
+          template = re.search(r'ARTIFACT="([^"]+)"', text)
+          if not template:
+              sys.exit(f"installer-contract: no ARTIFACT=\"...\" in {install_sh}.")
+          m = re.fullmatch(r'([A-Za-z0-9_.-]+)-\$\{OS\}-\$\{ARCH\}', template.group(1))
+          if not m:
+              sys.exit(
+                  "installer-contract: ARTIFACT template must be "
+                  '"<name>-${OS}-${ARCH}"; got ' + template.group(1)
+              )
+          prefix = m.group(1)
+          oses = set(re.findall(r'OS="([a-z0-9_]+)"', text))
+          arches = set(re.findall(r'ARCH="([a-z0-9_]+)"', text))
+          if not oses or not arches:
+              sys.exit(f"installer-contract: could not parse OS/ARCH arms from {install_sh}.")
+          requestable = {f"{prefix}-{o}-{a}" for o in oses for a in arches}
+
+          published = set(re.findall(r"^\s*-?\s*asset:\s*(\S+)\s*$",
+                                     release_yml.read_text(), re.MULTILINE))
+          if not published:
+              sys.exit(f"installer-contract: could not parse asset names from {release_yml}.")
+
+          missing = sorted(requestable - published)
+          if missing:
+              lines = "\n".join(f"  - {n}" for n in missing)
+              sys.exit(
+                  "installer-contract: install.sh can request assets the release "
+                  f"workflow does not publish:\n{lines}\n"
+                  f"published: {sorted(published)}"
+              )
+          print(f"OK: all {len(requestable)} installer-requestable assets are published.")
+          PY
