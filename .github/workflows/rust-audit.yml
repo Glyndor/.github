@@ -1,0 +1,55 @@
+name: Rust audit (reusable)
+
+# Scheduled supply-chain audit for Rust crates: cargo-audit flags RUSTSEC
+# advisories, cargo-deny enforces the license/ban/source policy in deny.toml.
+# Callers wire the schedule (e.g. weekly cron) in their own workflow.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing the Cargo workspace
+        type: string
+        default: "."
+      cargo-audit-version:
+        description: cargo-audit version requirement
+        type: string
+        default: "^0.22"
+      cargo-deny-version:
+        description: cargo-deny version requirement
+        type: string
+        default: "^0.19"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --version "${{ inputs.cargo-audit-version }}" --locked
+
+      - name: Run cargo audit
+        run: cargo audit
+
+  deny:
+    name: cargo deny
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --version "${{ inputs.cargo-deny-version }}" --locked
+
+      - name: Run cargo deny
+        run: cargo deny check
