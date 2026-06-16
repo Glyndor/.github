@@ -1,23 +1,23 @@
 # Support
 
-Thanks for using Glyndor projects. Here is where to go depending on what you need.
+Where to go depending on what you need.
 
-## 🐛 Found a bug?
+## Found a bug?
 
-Open an issue in the affected repository using the **Bug report** form. Good reports with steps to reproduce are genuinely appreciated and get fixed faster.
+Open an issue in the affected repository using the **Bug report** form. Include steps to reproduce.
 
-## 💡 Have an idea?
+## Have an idea?
 
 Open an issue using the **Feature request** form.
 
-## 🔒 Security vulnerabilities
+## Security vulnerabilities
 
-**Never open a public issue.** Use the repository's private vulnerability reporting (Security tab → Report a vulnerability). See [SECURITY.md](SECURITY.md) for response times.
+**Never open a public issue.** Use the repository's private vulnerability reporting (Security tab, Report a vulnerability). See [SECURITY.md](SECURITY.md) for response times.
 
-## 🤝 Want to contribute code?
+## Want to contribute code?
 
-Contributions are invitation-only — see [CONTRIBUTING.md](CONTRIBUTING.md). Unsolicited pull requests are not accepted, but bug reports and ideas through issues are always welcome.
+Contributions are invitation-only, see [CONTRIBUTING.md](CONTRIBUTING.md). Unsolicited pull requests are not accepted. Bug reports and ideas through issues are welcome.
 
-## ❓ Everything else
+## Everything else
 
-Issues are the only support channel. There is no support by email, social media, or direct message.
+Issues are the only support channel. No support by email, social media, or direct message.

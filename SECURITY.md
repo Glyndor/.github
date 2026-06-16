@@ -1,7 +1,7 @@
 # Security Policy
 
 Glyndor builds software that manages servers at a low level (ports, SSH,
-firewall, containers, mail). We take every report seriously.
+firewall, containers, mail).
 
 ## Reporting a Vulnerability
 
@@ -18,8 +18,8 @@ Include:
 - Potential impact
 - Suggested fix (optional)
 
-Responsible disclosure is appreciated. If the report leads to a fix, you'll be
-credited in the advisory and release notes (unless you prefer anonymity).
+If the report leads to a fix, you'll be credited in the advisory and release
+notes (unless you prefer anonymity).
 
 ## Response Timeline
 
