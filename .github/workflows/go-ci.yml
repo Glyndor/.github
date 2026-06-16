@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: go-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     name: Lint & test
@@ -45,7 +49,9 @@ jobs:
 
       - name: Coverage gate
         if: inputs.coverage-threshold > 0
+        env:
+          THRESHOLD: ${{ inputs.coverage-threshold }}
         run: |
           PCT=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
-          echo "### Coverage: ${PCT}% (threshold: ${{ inputs.coverage-threshold }}%)" >> "$GITHUB_STEP_SUMMARY"
-          awk -v p="$PCT" -v t="${{ inputs.coverage-threshold }}" 'BEGIN { exit (p >= t) ? 0 : 1 }'
+          echo "### Coverage: ${PCT}% (threshold: ${THRESHOLD}%)" >> "$GITHUB_STEP_SUMMARY"
+          awk -v p="$PCT" -v t="$THRESHOLD" 'BEGIN { exit (p >= t) ? 0 : 1 }'

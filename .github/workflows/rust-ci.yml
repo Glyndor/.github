@@ -39,6 +39,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: rust-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Format & lint
@@ -190,9 +194,11 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install MSRV toolchain
+        env:
+          MSRV: ${{ inputs.msrv }}
         run: |
-          rustup toolchain install ${{ inputs.msrv }} --profile minimal
-          rustup default ${{ inputs.msrv }}
+          rustup toolchain install "$MSRV" --profile minimal
+          rustup default "$MSRV"
 
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:

@@ -11,9 +11,25 @@ on:
         description: Python version
         type: string
         default: "3.13"
+      ruff-version:
+        description: ruff version to pin (empty = latest)
+        type: string
+        default: ""
+      pytest-version:
+        description: pytest version to pin (empty = latest)
+        type: string
+        default: ""
+      coverage-threshold:
+        description: Minimum coverage percentage (0 disables the gate; uses pytest-cov)
+        type: number
+        default: 0
 
 permissions:
   contents: read
+
+concurrency:
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
@@ -22,6 +38,10 @@ jobs:
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
+    env:
+      RUFF_VERSION: ${{ inputs.ruff-version }}
+      PYTEST_VERSION: ${{ inputs.pytest-version }}
+      THRESHOLD: ${{ inputs.coverage-threshold }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -32,8 +52,10 @@ jobs:
 
       - name: Install tooling and project
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
-          pip install ruff pytest
+          pip install "ruff${RUFF_VERSION:+==$RUFF_VERSION}" "pytest${PYTEST_VERSION:+==$PYTEST_VERSION}"
+          if [ "$THRESHOLD" != "0" ]; then pip install pytest-cov; fi
           if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -e .; fi
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
@@ -44,5 +66,16 @@ jobs:
         run: ruff format --check .
 
       - name: pytest
+        if: ${{ inputs.coverage-threshold == 0 }}
         run: |
           if ls tests/ test/ 2>/dev/null | grep -q .; then pytest; else echo "No tests directory — skipping"; fi
+
+      - name: pytest with coverage gate
+        if: ${{ inputs.coverage-threshold > 0 }}
+        run: |
+          if ls tests/ test/ 2>/dev/null | grep -q .; then
+            pytest --cov --cov-report=term-missing --cov-fail-under="$THRESHOLD"
+          else
+            echo "::error::coverage gate enabled but no tests directory found"
+            exit 1
+          fi

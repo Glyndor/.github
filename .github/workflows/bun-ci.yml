@@ -8,12 +8,20 @@ on:
         type: string
         default: "."
       bun-version:
-        description: Bun version
+        description: Bun version (pin a major for reproducibility)
         type: string
-        default: latest
+        default: "1"
+      coverage-threshold:
+        description: Minimum line coverage percentage (0 disables the gate; uses bun test --coverage)
+        type: number
+        default: 0
 
 permissions:
   contents: read
+
+concurrency:
+  group: bun-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
@@ -39,4 +47,20 @@ jobs:
         run: bun run build --if-present
 
       - name: Test
+        if: ${{ inputs.coverage-threshold == 0 }}
         run: bun run test --if-present
+
+      - name: Test with coverage gate
+        if: ${{ inputs.coverage-threshold > 0 }}
+        env:
+          THRESHOLD: ${{ inputs.coverage-threshold }}
+        run: |
+          set -euo pipefail
+          bun test --coverage --coverage-reporter=text | tee coverage.txt
+          PCT=$(awk -F'|' '/All files/ {gsub(/ /,"",$4); print $4}' coverage.txt)
+          if [ -z "$PCT" ]; then
+            echo "::error::could not parse coverage from bun test output"
+            exit 1
+          fi
+          echo "### Coverage: ${PCT}% (threshold: ${THRESHOLD}%)" >> "$GITHUB_STEP_SUMMARY"
+          awk -v p="$PCT" -v t="$THRESHOLD" 'BEGIN { exit (p >= t) ? 0 : 1 }'
