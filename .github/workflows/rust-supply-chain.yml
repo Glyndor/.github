@@ -28,6 +28,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: rust-supply-chain-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sbom-and-licenses:
     name: SBOM and license attribution
@@ -35,19 +39,31 @@ jobs:
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
+    env:
+      ABOUT_TEMPLATE: ${{ inputs.about-template }}
+      CYCLONEDX_VERSION: ${{ inputs.cyclonedx-version }}
+      ABOUT_VERSION: ${{ inputs.cargo-about-version }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: rust-supply-chain-${{ runner.os }}-${{ inputs.cyclonedx-version }}-${{ inputs.cargo-about-version }}
+
       - name: Install generators
         run: |
-          cargo install --locked cargo-cyclonedx --version "${{ inputs.cyclonedx-version }}"
-          cargo install --locked --features cli cargo-about --version "${{ inputs.cargo-about-version }}"
+          command -v cargo-cyclonedx >/dev/null || cargo install --locked cargo-cyclonedx --version "$CYCLONEDX_VERSION"
+          command -v cargo-about >/dev/null || cargo install --locked --features cli cargo-about --version "$ABOUT_VERSION"
 
       - name: Generate CycloneDX SBOM
         run: cargo cyclonedx --format json --all-features
 
       - name: Generate third-party license attribution (NOTICES)
-        run: cargo about generate "${{ inputs.about-template }}" > NOTICES.html
+        run: cargo about generate "$ABOUT_TEMPLATE" > NOTICES.html
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

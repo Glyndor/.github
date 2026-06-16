@@ -16,9 +16,9 @@ on:
         type: string
         default: "ubuntu-latest"
       debian-image:
-        description: Container image to build in
+        description: Container image to build in (a stable suite is reproducible)
         type: string
-        default: "debian:sid"
+        default: "debian:trixie"
       arch:
         description: Architecture to verify/stage (empty matches any)
         type: string
@@ -43,12 +43,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: rust-debian-${{ github.workflow }}-${{ github.ref }}-${{ inputs.arch }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: dpkg-buildpackage
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.debian-image }}
+    env:
+      PKG: ${{ inputs.package-name }}
+      ARCH: ${{ inputs.arch }}
     steps:
       - name: Install build tooling
         env:
@@ -67,9 +74,6 @@ jobs:
         run: dpkg-buildpackage -us -uc -b
 
       - name: Confirm the .deb was produced
-        env:
-          PKG: ${{ inputs.package-name }}
-          ARCH: ${{ inputs.arch }}
         run: |
           set -euo pipefail
           if [ -n "$ARCH" ]; then
@@ -101,6 +105,9 @@ jobs:
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.debian-image }}
+    env:
+      PKG: ${{ inputs.package-name }}
+      OFFLINE_ARGS: ${{ inputs.offline-cargo-args }}
     steps:
       - name: Install build tooling
         env:
@@ -122,6 +129,6 @@ jobs:
         env:
           CARGO_NET_OFFLINE: "true"
         run: |
-          cargo build --release --locked --offline ${{ inputs.offline-cargo-args }}
-          test -x "target/release/${{ inputs.package-name }}"
-          echo "Built target/release/${{ inputs.package-name }} offline from vendored sources"
+          cargo build --release --locked --offline $OFFLINE_ARGS
+          test -x "target/release/${PKG}"
+          echo "Built target/release/${PKG} offline from vendored sources"

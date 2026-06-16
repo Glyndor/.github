@@ -18,6 +18,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: shell-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   shellcheck:
     name: shellcheck
@@ -25,6 +29,8 @@ jobs:
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
+    env:
+      SEVERITY: ${{ inputs.severity }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -42,4 +48,4 @@ jobs:
         run: |
           set -euo pipefail
           find . -type f -name '*.sh' -not -path './.git/*' -print0 \
-            | xargs -0 -r shellcheck --severity="${{ inputs.severity }}"
+            | xargs -0 -r shellcheck --severity="$SEVERITY"
