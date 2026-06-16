@@ -84,6 +84,7 @@ conventions:
 - `gofmt` and `go vet` must pass; table-driven tests preferred
 
 **Next.js / TypeScript:**
+- `bun` is the package manager — commit `bun.lock`; CI runs `bun install --frozen-lockfile`
 - `biome format` + `biome lint` must pass
 - Server Components by default — `"use client"` only when required
 - All user-visible text in i18n files — never hardcoded strings
