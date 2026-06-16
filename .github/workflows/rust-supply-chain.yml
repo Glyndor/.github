@@ -1,0 +1,58 @@
+name: Rust supply chain (reusable)
+
+# Generate the supply-chain artifacts government and enterprise consumers expect:
+# a machine-readable SBOM (CycloneDX, per US EO 14028) and a third-party license
+# attribution (NOTICES). Run on every PR to keep the generators honest; the
+# release workflow attaches the same artifacts to each published release.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing the Cargo workspace
+        type: string
+        default: "."
+      about-template:
+        description: cargo-about handlebars template
+        type: string
+        default: "about.hbs"
+      cyclonedx-version:
+        description: cargo-cyclonedx version requirement
+        type: string
+        default: "^0.5"
+      cargo-about-version:
+        description: cargo-about version requirement
+        type: string
+        default: "^0.9"
+
+permissions:
+  contents: read
+
+jobs:
+  sbom-and-licenses:
+    name: SBOM and license attribution
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install generators
+        run: |
+          cargo install --locked cargo-cyclonedx --version "${{ inputs.cyclonedx-version }}"
+          cargo install --locked --features cli cargo-about --version "${{ inputs.cargo-about-version }}"
+
+      - name: Generate CycloneDX SBOM
+        run: cargo cyclonedx --format json --all-features
+
+      - name: Generate third-party license attribution (NOTICES)
+        run: cargo about generate "${{ inputs.about-template }}" > NOTICES.html
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-and-notices
+          path: |
+            ${{ inputs.working-directory }}/*.cdx.json
+            ${{ inputs.working-directory }}/NOTICES.html
+          if-no-files-found: error

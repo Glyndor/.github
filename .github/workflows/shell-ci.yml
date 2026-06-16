@@ -1,0 +1,45 @@
+name: Shell CI (reusable)
+
+# Lint every shell script in the repository: bash -n catches syntax errors,
+# shellcheck catches quoting, unset-variable and other correctness bugs.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory to scan for shell scripts
+        type: string
+        default: "."
+      severity:
+        description: Minimum shellcheck severity to report (style|info|warning|error)
+        type: string
+        default: "style"
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Syntax check
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r -d '' f; do
+            found=1
+            bash -n "$f"
+          done < <(find . -type f -name '*.sh' -not -path './.git/*' -print0)
+          [ "$found" -eq 1 ] || echo "No .sh files found; nothing to check."
+
+      - name: Run shellcheck
+        run: |
+          set -euo pipefail
+          find . -type f -name '*.sh' -not -path './.git/*' -print0 \
+            | xargs -0 -r shellcheck --severity="${{ inputs.severity }}"
