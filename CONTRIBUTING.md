@@ -1,6 +1,6 @@
 # Contributing to Glyndor
 
-Thank you for your interest. Please read this before doing anything else.
+Read this before opening an issue or pull request.
 
 ## Contribution model
 
