@@ -9,9 +9,13 @@ Org-wide defaults for all Glyndor repositories.
 | `profile/README.md` | Organization profile page |
 | `SECURITY.md` | Default security policy (private vulnerability reporting) |
 | `CONTRIBUTING.md` | Contribution model, branch flow, commit conventions |
+| `CODE_OF_CONDUCT.md` | Default code of conduct |
+| `SUPPORT.md` | Where to get help |
+| `FUNDING.yml` | Sponsor links |
 | `.github/ISSUE_TEMPLATE/` | Default issue forms |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Default PR template |
-| `.github/workflows/*-ci.yml` | Reusable CI workflows (Rust, Go, Node, Python) |
+| `.github/dependabot.yml` | Daily github-actions updates |
+| `.github/workflows/*-ci.yml` | Reusable CI workflows (Rust, Go, Bun, Python) |
 
 Repositories without their own community health files inherit the ones in this
 repo automatically.
@@ -32,7 +36,8 @@ jobs:
       coverage-threshold: 70
 ```
 
-Same pattern for `go-ci.yml`, `node-ci.yml` and `python-ci.yml`.
+Same pattern for `go-ci.yml`, `bun-ci.yml` and `python-ci.yml`.
 
-> Note: the organization requires actions to be SHA-pinned. Third-party actions
-> are not allowed — only `actions/*` and `Glyndor/*`.
+> Note: the organization requires actions to be SHA-pinned. Allowed sources are
+> `actions/*`, `Glyndor/*` and `oven-sh/setup-bun` (the only third-party
+> exception, needed by `bun-ci.yml`).
