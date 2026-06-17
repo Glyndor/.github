@@ -11,6 +11,10 @@ on:
         description: Minimum line coverage percentage (0 disables the gate)
         type: number
         default: 0
+      coverage-ignore-regex:
+        description: Regex of file paths to exclude from coverage (e.g. code covered only by a separate DB integration job)
+        type: string
+        default: ""
       extra-test-os:
         description: JSON array of extra runner images to also run tests on (e.g. '["macos-latest"]')
         type: string
@@ -173,8 +177,10 @@ jobs:
       - name: Coverage gate
         env:
           PODMAN_SOCKET: ${{ steps.podman-socket.outputs.path }}
+          COVERAGE_IGNORE_REGEX: ${{ inputs.coverage-ignore-regex }}
         run: |
-          cargo llvm-cov --workspace --all-features --summary-only --json --output-path coverage.json
+          cargo llvm-cov --workspace --all-features --summary-only --json --output-path coverage.json \
+            ${COVERAGE_IGNORE_REGEX:+--ignore-filename-regex "$COVERAGE_IGNORE_REGEX"}
           PCT=$(python3 -c "import json; print(json.load(open('coverage.json'))['data'][0]['totals']['lines']['percent'])")
           echo "### Coverage: ${PCT}% (threshold: ${{ inputs.coverage-threshold }}%)" >> "$GITHUB_STEP_SUMMARY"
           python3 - "$PCT" "${{ inputs.coverage-threshold }}" <<'EOF'
