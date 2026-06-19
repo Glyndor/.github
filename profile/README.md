@@ -30,8 +30,8 @@ panel/   podup/   mail/   transparencia/
 |---|---|---|
 | [**panel**](https://github.com/Glyndor/panel) | Secure self-hosted hosting panel — firewall, ports, SSH, containers and WireGuard tunnels | 🟡 In development |
 | └ [panel-agent](https://github.com/Glyndor/panel-agent) | Hardened agent on each managed server — Ed25519-signed commands over WireGuard + mTLS | 🟢 Released · <!-- v:Glyndor/panel-agent -->v1.3.1<!-- /v --> |
-| [**podup**](https://github.com/Glyndor/podup) | `docker-compose` translated to rootless Podman — Rust library + drop-in CLI | 🟢 Released · <!-- v:Glyndor/podup -->v0.24.0<!-- /v --> |
-| [**mail**](https://github.com/Glyndor/mail) | Headless self-hosted mail server — SMTP/IMAP, DKIM/SPF/DMARC, API + CLI | 🟡 In development · <!-- v:Glyndor/mail -->v0.2.0<!-- /v --> |
+| [**podup**](https://github.com/Glyndor/podup) | `docker-compose` translated to rootless Podman — Rust library + drop-in CLI | 🟢 Released · <!-- v:Glyndor/podup -->v1.1.0<!-- /v --> |
+| [**mail**](https://github.com/Glyndor/mail) | Headless self-hosted mail server — SMTP/IMAP, DKIM/SPF/DMARC, API + CLI | 🟡 In development · <!-- v:Glyndor/mail -->v0.3.1<!-- /v --> |
 | └ [mail-panel](https://github.com/Glyndor/mail-panel) | Next.js admin UI on top of the mail API | 🟡 In development |
 | [**transparencia**](https://glyndor.net/projects/transparencia) | Public-money traceability — open data, live contracts, risk alerts | 🔵 Coming soon |
 
