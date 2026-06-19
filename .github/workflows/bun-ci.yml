@@ -41,14 +41,14 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Lint
-        run: bun run lint --if-present
+        run: bun run --if-present lint
 
       - name: Build
-        run: bun run build --if-present
+        run: bun run --if-present build
 
       - name: Test
         if: ${{ inputs.coverage-threshold == 0 }}
-        run: bun run test --if-present
+        run: bun run --if-present test
 
       - name: Test with coverage gate
         if: ${{ inputs.coverage-threshold > 0 }}
