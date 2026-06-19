@@ -56,7 +56,8 @@ jobs:
           THRESHOLD: ${{ inputs.coverage-threshold }}
         run: |
           set -euo pipefail
-          bun test --coverage --coverage-reporter=text | tee coverage.txt
+          # bun writes the coverage table to stderr, so capture both streams.
+          bun test --coverage --coverage-reporter=text 2>&1 | tee coverage.txt
           # Locate the "% Lines" column from the header (bun emits
           # File | % Funcs | % Lines | Uncovered), then read it off "All files".
           PCT=$(awk -F'|' '
