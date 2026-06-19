@@ -57,7 +57,14 @@ jobs:
         run: |
           set -euo pipefail
           bun test --coverage --coverage-reporter=text | tee coverage.txt
-          PCT=$(awk -F'|' '/All files/ {gsub(/ /,"",$4); print $4}' coverage.txt)
+          # Locate the "% Lines" column from the header (bun emits
+          # File | % Funcs | % Lines | Uncovered), then read it off "All files".
+          PCT=$(awk -F'|' '
+            /% Funcs/ && /% Lines/ {
+              for (i = 1; i <= NF; i++) { h = $i; gsub(/^ +| +$/, "", h); if (h == "% Lines") col = i }
+            }
+            /All files/ && col { v = $col; gsub(/ /, "", v); print v }
+          ' coverage.txt)
           if [ -z "$PCT" ]; then
             echo "::error::could not parse coverage from bun test output"
             exit 1
