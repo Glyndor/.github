@@ -1,7 +1,11 @@
 name: Line limit (reusable)
 
 # Enforce the file-size standard: warn past the soft limit, fail past the hard
-# limit. Language-agnostic — scans tracked source files by extension.
+# limit. Language-agnostic — scans tracked source files by extension. Counts
+# CODE lines only: blank lines and comment-only lines (including the required
+# doc comments) do not count, so documenting a public API never pushes a file
+# over the limit. The comment detection is a pragmatic heuristic (lines whose
+# first non-space character starts a line/block/doc/template comment).
 
 on:
   workflow_call:
@@ -55,12 +59,17 @@ jobs:
             if [ -n "$EXCLUDE" ] && echo "$f" | grep -qE "$EXCLUDE"; then
               continue
             fi
-            n="$(wc -l < "$f")"
+            n="$(awk '
+              { line = $0; sub(/^[[:space:]]+/, "", line)
+                if (line == "") next
+                if (line ~ /^(\/\/|#|\*|\/\*|\*\/|<!--)/) next
+                code++ }
+              END { print code + 0 }' "$f")"
             if [ "$n" -gt "$HARD" ]; then
-              echo "::error file=$f::$f has $n lines (hard limit $HARD — split required)"
+              echo "::error file=$f::$f has $n code lines (hard limit $HARD — split required)"
               fail=1
             elif [ "$n" -gt "$SOFT" ]; then
-              echo "::warning file=$f::$f has $n lines (soft limit $SOFT — look for a split point)"
+              echo "::warning file=$f::$f has $n code lines (soft limit $SOFT — look for a split point)"
             fi
           done < <(git ls-files | grep -E "\.($ext_re)\$" || true)
           if [ "$fail" -ne 0 ]; then
