@@ -76,16 +76,17 @@ jobs:
       - name: Confirm the .deb was produced
         run: |
           set -euo pipefail
+          shopt -s nullglob
           if [ -n "$ARCH" ]; then
-            glob="../${PKG}_*_${ARCH}.deb"
+            debs=( ../"${PKG}"_*_"${ARCH}".deb )
           else
-            glob="../${PKG}_*.deb"
+            debs=( ../"${PKG}"_*.deb )
           fi
-          deb=$(ls $glob 2>/dev/null | head -n1)
-          if [ -z "$deb" ]; then
-            echo "::error::no .deb artifact was produced (looked for $glob)"
+          if [ ${#debs[@]} -eq 0 ]; then
+            echo "::error::no .deb artifact was produced"
             exit 1
           fi
+          deb="${debs[0]}"
           echo "Built $deb"
           dpkg-deb --contents "$deb"
           cp "$deb" "$(basename "$deb")"
@@ -129,6 +130,7 @@ jobs:
         env:
           CARGO_NET_OFFLINE: "true"
         run: |
-          cargo build --release --locked --offline $OFFLINE_ARGS
+          read -ra offline_args <<< "$OFFLINE_ARGS"
+          cargo build --release --locked --offline "${offline_args[@]}"
           test -x "target/release/${PKG}"
           echo "Built target/release/${PKG} offline from vendored sources"
