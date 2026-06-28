@@ -1,0 +1,80 @@
+name: Go audit (reusable)
+
+# Scheduled security audit for Go modules: govulncheck flags known
+# vulnerabilities from the Go vulnerability database, gosec runs static security
+# analysis. Callers wire the schedule (e.g. weekly cron) in their own workflow.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing the Go module
+        type: string
+        default: "."
+      govulncheck-version:
+        description: govulncheck version
+        type: string
+        default: "v1.1.4"
+      gosec-version:
+        description: gosec version
+        type: string
+        default: "v2.27.1"
+      gosec-exclude:
+        description: Comma-separated gosec rule IDs to exclude (e.g. G104,G115)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: ${{ inputs.working-directory }}/go.mod
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@${{ inputs.govulncheck-version }}
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  gosec:
+    name: gosec
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      EXCLUDE: ${{ inputs.gosec-exclude }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: ${{ inputs.working-directory }}/go.mod
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@${{ inputs.gosec-version }}
+
+      - name: Run gosec
+        run: |
+          if [ -n "$EXCLUDE" ]; then
+            gosec -exclude="$EXCLUDE" ./...
+          else
+            gosec ./...
+          fi
