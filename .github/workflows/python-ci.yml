@@ -68,12 +68,12 @@ jobs:
       - name: pytest
         if: ${{ inputs.coverage-threshold == 0 }}
         run: |
-          if ls tests/ test/ 2>/dev/null | grep -q .; then pytest; else echo "No tests directory — skipping"; fi
+          if [ -d tests ] || [ -d test ]; then pytest; else echo "No tests directory — skipping"; fi
 
       - name: pytest with coverage gate
         if: ${{ inputs.coverage-threshold > 0 }}
         run: |
-          if ls tests/ test/ 2>/dev/null | grep -q .; then
+          if [ -d tests ] || [ -d test ]; then
             pytest --cov --cov-report=term-missing --cov-fail-under="$THRESHOLD"
           else
             echo "::error::coverage gate enabled but no tests directory found"
