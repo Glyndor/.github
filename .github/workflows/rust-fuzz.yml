@@ -1,0 +1,76 @@
+name: Rust fuzz (reusable)
+
+# Scheduled fuzzing for Rust crates: runs `cargo fuzz run` (cargo-fuzz +
+# libfuzzer, nightly) against each declared target for a short, bounded time to
+# surface parser panics and edge cases on a fixed tree. Callers wire the schedule
+# (e.g. nightly cron) and pass the target list in their own workflow. This is a
+# smoke run, not a corpus-building soak.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing the crate (the one holding the fuzz/ dir)
+        type: string
+        default: "."
+      targets:
+        description: >-
+          JSON array of cargo-fuzz target names, e.g.
+          ["smtp_command","smtp_line","smtp_address"]
+        type: string
+        required: true
+      max-total-time:
+        description: Seconds to fuzz each target (libfuzzer -max_total_time)
+        type: string
+        default: "60"
+      timeout:
+        description: Per-input timeout in seconds (libfuzzer -timeout)
+        type: string
+        default: "10"
+      toolchain:
+        description: Rust toolchain to use (cargo-fuzz requires nightly)
+        type: string
+        default: "nightly"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-fuzz-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: cargo fuzz
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(inputs.targets) }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      TOOLCHAIN: ${{ inputs.toolchain }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup default "$TOOLCHAIN"
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ${{ inputs.working-directory }}/fuzz/target
+          key: cargo-fuzz-${{ runner.os }}-${{ hashFiles(format('{0}/fuzz/Cargo.toml', inputs.working-directory)) }}
+
+      - name: Install cargo-fuzz
+        run: command -v cargo-fuzz >/dev/null || cargo install cargo-fuzz --locked
+
+      - name: Fuzz ${{ matrix.target }}
+        run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=${{ inputs.max-total-time }} -timeout=${{ inputs.timeout }}
