@@ -1,0 +1,53 @@
+name: Go fuzz (reusable)
+
+# Scheduled fuzzing for Go modules: runs `go test -fuzz` against each declared
+# target for a short, bounded time to surface parser panics and edge cases on a
+# fixed tree. Callers wire the schedule (e.g. weekly cron) and pass the target
+# list in their own workflow. This is a smoke run, not a corpus-building soak.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing the Go module
+        type: string
+        default: "."
+      targets:
+        description: >-
+          JSON array of {"package","func"} objects to fuzz, e.g.
+          [{"package":"./auth/email","func":"FuzzValidateAndNormalize"}]
+        type: string
+        required: true
+      fuzztime:
+        description: How long to fuzz each target (go test -fuzztime)
+        type: string
+        default: "60s"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-fuzz-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: go test -fuzz (smoke)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.targets) }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: ${{ inputs.working-directory }}/go.mod
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - name: Fuzz ${{ matrix.func }} (${{ matrix.package }})
+        run: go test -run='^$' -fuzz='^${{ matrix.func }}$' -fuzztime=${{ inputs.fuzztime }} ${{ matrix.package }}
