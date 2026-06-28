@@ -1,0 +1,39 @@
+name: Actionlint
+
+# Self-CI for this repo: the reusable workflows here have org-wide blast radius,
+# so validate them before they reach consumers. actionlint checks workflow YAML,
+# ${{ }} expressions, action references and (via shellcheck) the run: scripts.
+# Installed with `go install` to keep to GitHub-owned actions only — no
+# third-party action, matching how go-audit installs its tools.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actionlint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    env:
+      ACTIONLINT_VERSION: v1.7.12
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: stable
+
+      - name: Install actionlint
+        run: go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
+
+      - name: Run actionlint
+        run: actionlint -color
