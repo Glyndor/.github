@@ -136,7 +136,7 @@ jobs:
         env:
           CARGO_NET_OFFLINE: "true"
         run: |
-          set -- $OFFLINE_ARGS
-          cargo build --release --locked --offline "$@"
+          read -ra offline_args <<< "$OFFLINE_ARGS"
+          cargo build --release --locked --offline "${offline_args[@]}"
           test -x "target/release/${PKG}"
           echo "Built target/release/${PKG} offline from vendored sources"
