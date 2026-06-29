@@ -50,4 +50,8 @@ jobs:
           cache-dependency-path: ${{ inputs.working-directory }}/go.sum
 
       - name: Fuzz ${{ matrix.func }} (${{ matrix.package }})
-        run: go test -run='^$' -fuzz='^${{ matrix.func }}$' -fuzztime=${{ inputs.fuzztime }} ${{ matrix.package }}
+        env:
+          FUNC: ${{ matrix.func }}
+          PACKAGE: ${{ matrix.package }}
+          FUZZTIME: ${{ inputs.fuzztime }}
+        run: go test -run='^$' -fuzz="^${FUNC}\$" -fuzztime="$FUZZTIME" "$PACKAGE"

@@ -69,6 +69,6 @@ jobs:
         with:
           name: sbom-and-notices
           path: |
-            ${{ inputs.working-directory }}/*.cdx.json
+            ${{ inputs.working-directory }}/**/*.cdx.json
             ${{ inputs.working-directory }}/NOTICES.html
           if-no-files-found: error
