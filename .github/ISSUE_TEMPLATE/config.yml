@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/Glyndor
+    url: https://github.com/Glyndor/.github/security/policy
     about: "Do not open a public issue. Use the Security tab of the affected repository and click 'Report a vulnerability'."
