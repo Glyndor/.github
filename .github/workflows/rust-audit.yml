@@ -51,7 +51,9 @@ jobs:
         run: command -v cargo-audit >/dev/null || cargo install cargo-audit --version "$TOOL_VERSION" --locked
 
       - name: Run cargo audit
-        run: cargo audit
+        # --deny warnings so unmaintained/unsound/yanked advisories also fail,
+        # not just vulnerabilities.
+        run: cargo audit --deny warnings
 
   deny:
     name: cargo deny

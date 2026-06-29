@@ -76,7 +76,7 @@ jobs:
         run: cargo fmt --all --check
 
       - name: clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
   test:
     name: Test
@@ -103,7 +103,7 @@ jobs:
           restore-keys: rust-test-${{ runner.os }}-
 
       - name: Tests
-        run: cargo test --all-features --workspace
+        run: cargo test --locked --all-features --workspace
 
   test-extra:
     name: Test (${{ matrix.os }})
@@ -135,7 +135,7 @@ jobs:
           restore-keys: rust-test-${{ runner.os }}-
 
       - name: Tests
-        run: cargo test --all-features --workspace
+        run: cargo test --locked --all-features --workspace
 
   coverage:
     name: Coverage

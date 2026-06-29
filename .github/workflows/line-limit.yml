@@ -59,10 +59,17 @@ jobs:
             if [ -n "$EXCLUDE" ] && echo "$f" | grep -qE "$EXCLUDE"; then
               continue
             fi
-            n="$(awk '
+            # `#` starts a comment only in hash-comment languages; in Rust it
+            # begins an attribute (#[...]/#![...]), so don't drop those lines.
+            case "$f" in
+              *.sh|*.bash|*.py|*.rb|*.pl|*.yml|*.yaml|*.toml) hash_comment=1 ;;
+              *) hash_comment=0 ;;
+            esac
+            n="$(awk -v hc="$hash_comment" '
               { line = $0; sub(/^[[:space:]]+/, "", line)
                 if (line == "") next
-                if (line ~ /^(\/\/|#|\*|\/\*|\*\/|<!--)/) next
+                if (line ~ /^(\/\/|\*|\/\*|\*\/|<!--)/) next
+                if (hc == 1 && line ~ /^#/) next
                 code++ }
               END { print code + 0 }' "$f")"
             if [ "$n" -gt "$HARD" ]; then

@@ -12,9 +12,14 @@ on:
   repository_dispatch:
     types: [release]
 
+# GITHUB_TOKEN can push the branch (contents) but not open the PR under the
+# org policy — that uses VERSION_BOT_TOKEN — so no pull-requests grant here.
 permissions:
   contents: write
-  pull-requests: write
+
+concurrency:
+  group: profile-versions
+  cancel-in-progress: false
 
 jobs:
   sync:
