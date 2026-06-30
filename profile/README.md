@@ -1,70 +1,138 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/logo.webp" alt="Glyndor" width="140" />
+<img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/logo.webp" alt="Glyndor" width="130" />
 
 # Glyndor
 
 ### Secure, self-hosted infrastructure you actually own.
 
-Open-source, security-first tools for self-hosters and teams who want control
-without trading away safety — hardened, lightweight, and built to
-[OWASP ASVS Level 3](https://owasp.org/www-project-application-security-verification-standard/).
+Open-source, security-first tools for self-hosters and teams — hardened,
+lightweight, and built to OWASP ASVS Level 3.
 
-[**glyndor.net**](https://glyndor.net) · [Support](https://glyndor.net/support) · [Security policy](https://github.com/Glyndor/.github/security/policy)
+[![License](https://img.shields.io/badge/license-Apache--2.0-3fb950?style=flat-square)](https://github.com/Glyndor/.github/blob/main/LICENSE)
+&nbsp;![ASVS](https://img.shields.io/badge/OWASP_ASVS-Level_3-3fb950?style=flat-square)
+&nbsp;![Secure by default](https://img.shields.io/badge/secure-by_default-3fb950?style=flat-square)
+&nbsp;![Stack](https://img.shields.io/badge/Rust_·_Go_·_TypeScript-30363d?style=flat-square)
+
+[**glyndor.net**](https://glyndor.net)&nbsp; · &nbsp;[**Support**](https://glyndor.net/support)&nbsp; · &nbsp;[**Security**](https://github.com/Glyndor/.github/security/policy)
 
 </div>
 
 ---
 
-```console
-$ whoami
-Glyndor — open-source infrastructure, secure by default.
-
-$ ls ./projects
-helmly/   epistle/   podup/   authcore/   unitpm/   klyradb/   specio/   viden/
-
-$ cat ./principles
-secure-by-default  ·  you-own-it  ·  open-source  ·  minimal-and-native
-```
-
 ## 🖥️ The platform
 
-Run a single server or a hardened fleet — the panel, its agents, and the
-container layer that powers them.
+<table>
+<tr>
+<td valign="top" width="50%">
 
-| Project | What it is | Status |
-|---|---|---|
-| [**helmly**](https://github.com/Glyndor/helmly) | Self-hosted hosting panel — firewall, SSH, containers and WireGuard tunnels, single server or fleets. A cPanel / Plesk / Coolify alternative. | 🟡 In development |
-| └ [helmly-agent](https://github.com/Glyndor/helmly-agent) | Hardened per-server agent — Ed25519-signed commands and telemetry over WireGuard + mTLS. | 🟢 Released · <!-- v:Glyndor/helmly-agent -->v1.3.1<!-- /v --> |
-| [**podup**](https://github.com/Glyndor/podup) | `docker-compose` translated to rootless Podman — Rust library + drop-in CLI. | 🟢 Released · <!-- v:Glyndor/podup -->v1.8.0<!-- /v --> |
+### 🖥️ [helmly](https://github.com/Glyndor/helmly)
+Self-hosted hosting panel — firewall, SSH, containers and WireGuard tunnels. One server or a hardened fleet. A cPanel / Plesk / Coolify alternative.
+
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-30363d?style=flat-square&logo=nextdotjs&logoColor=white) ![status](https://img.shields.io/badge/status-in_development-d29922?style=flat-square)
+
+</td>
+<td valign="top" width="50%">
+
+### 🛡️ [helmly-agent](https://github.com/Glyndor/helmly-agent)
+Hardened per-server agent — runs Ed25519-signed commands and reports telemetry over WireGuard + mTLS.
+
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/helmly-agent?style=flat-square&color=3fb950&label=)
+
+</td>
+</tr>
+<tr>
+<td valign="top" width="50%">
+
+### 📦 [podup](https://github.com/Glyndor/podup)
+`docker-compose` translated to rootless Podman — Rust library and a drop-in CLI.
+
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/podup?style=flat-square&color=3fb950&label=)
+
+</td>
+<td valign="top" width="50%"></td>
+</tr>
+</table>
 
 ## ✉️ Mail
 
-A headless mail server and the panel that drives it.
+<table>
+<tr>
+<td valign="top" width="50%">
 
-| Project | What it is | Status |
-|---|---|---|
-| [**epistle**](https://github.com/Glyndor/epistle) | Self-hosted mail server — SMTP, IMAP and modern email security behind an API and CLI. Standalone or integrated with the panel. | 🟢 Released · <!-- v:Glyndor/epistle -->v0.3.4<!-- /v --> |
-| └ [epistle-panel](https://github.com/Glyndor/epistle-panel) | Next.js admin UI — domains, mailboxes, security and queues on top of the mail API. | 🟡 In development |
+### ✉️ [epistle](https://github.com/Glyndor/epistle)
+Self-hosted mail server — SMTP, IMAP and modern email security behind an API and CLI. Standalone or panel-integrated.
+
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/epistle?style=flat-square&color=3fb950&label=)
+
+</td>
+<td valign="top" width="50%">
+
+### 📬 [epistle-panel](https://github.com/Glyndor/epistle-panel)
+Next.js admin UI for the mail server — domains, mailboxes, security and queues on top of the mail API.
+
+![Next.js](https://img.shields.io/badge/Next.js-30363d?style=flat-square&logo=nextdotjs&logoColor=white) ![status](https://img.shields.io/badge/status-in_development-d29922?style=flat-square)
+
+</td>
+</tr>
+</table>
 
 ## 🧰 Developer tools
 
-Standalone tools that stand on their own — drop one into your stack.
+<table>
+<tr>
+<td valign="top" width="50%">
 
-| Project | What it is | Status |
-|---|---|---|
-| [**authcore**](https://github.com/Glyndor/authcore) | Drop-in auth for Go — Argon2id passwords, EdDSA JWTs with refresh rotation, opaque API keys, OIDC + OAuth2. Secure by default, zero boilerplate. | 🟢 Released · <!-- v:Glyndor/authcore -->v1.11.2<!-- /v --> |
-| [**unitpm**](https://github.com/Glyndor/unitpm) | Fast, secure process manager for Linux — the zero-overhead, systemd-native alternative to PM2. | 🟡 In development |
-| [**klyradb**](https://github.com/Glyndor/klyradb) | Desktop app to manage isolated PostgreSQL, MySQL, MariaDB and Redis instances on Linux — DBngin for Ubuntu. | 🟢 Released · <!-- v:Glyndor/klyradb -->v0.7.2<!-- /v --> |
+### 🔐 [authcore](https://github.com/Glyndor/authcore)
+Drop-in auth for Go — Argon2id passwords, EdDSA JWTs with refresh rotation, opaque API keys, OIDC + OAuth2. Zero boilerplate.
+
+![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/authcore?style=flat-square&color=3fb950&label=)
+
+</td>
+<td valign="top" width="50%">
+
+### ⚡ [unitpm](https://github.com/Glyndor/unitpm)
+Fast, secure process manager for Linux — the zero-overhead, systemd-native alternative to PM2.
+
+![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![status](https://img.shields.io/badge/status-in_development-d29922?style=flat-square)
+
+</td>
+</tr>
+<tr>
+<td valign="top" width="50%">
+
+### 🗄️ [klyradb](https://github.com/Glyndor/klyradb)
+Desktop app to manage isolated PostgreSQL, MySQL, MariaDB and Redis instances on Linux — DBngin for Ubuntu.
+
+![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/klyradb?style=flat-square&color=3fb950&label=)
+
+</td>
+<td valign="top" width="50%"></td>
+</tr>
+</table>
 
 ## 🧩 Browser extensions
 
-Free, multilingual, open-source — no account, no limits. Chrome (Manifest V3).
+<table>
+<tr>
+<td valign="top" width="50%">
 
-| Project | What it is | Status |
-|---|---|---|
-| [**specio**](https://github.com/Glyndor/specio) | Detects the tech a site is built with — CMS, frameworks, analytics, CDNs, servers, fonts. An open Wappalyzer alternative. | 🟢 Released · <!-- v:Glyndor/specio -->v0.3.2<!-- /v --> |
-| [**viden**](https://github.com/Glyndor/viden) | Detects and downloads the video playing on a page, including hidden or obscured streams (MP4, HLS, DASH). | 🔵 Coming soon |
+### 🧩 [specio](https://github.com/Glyndor/specio)
+Detects the tech a site is built with — CMS, frameworks, analytics, CDNs, servers, fonts. An open Wappalyzer alternative.
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/specio?style=flat-square&color=3fb950&label=)
+
+</td>
+<td valign="top" width="50%">
+
+### 🎬 [viden](https://github.com/Glyndor/viden)
+Detects and downloads the video playing on a page — including hidden or obscured streams (MP4, HLS, DASH).
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![status](https://img.shields.io/badge/status-coming_soon-1f6feb?style=flat-square)
+
+</td>
+</tr>
+</table>
 
 ## 🔭 How it fits together
 
@@ -76,21 +144,13 @@ flowchart LR
   epistle --> ep["epistle-panel"]
 ```
 
-Each tool stands on its own — adopt one, or run them together.
-
 ## 🛡️ Principles
 
-- **Secure by default** — the most restrictive configuration ships active. You opt in to looseness, never to safety. Built to ASVS Level 3.
-- **You own it** — self-hosted native binaries, no SaaS lock-in.
-- **Open source** — every project is public and Apache-2.0 licensed.
-- **Minimal & native** — lightweight binaries, few dependencies, audited supply chain.
+**Secure by default** — the most restrictive config ships active.&nbsp; **You own it** — native binaries, no SaaS lock-in.&nbsp; **Open source** — every project public and Apache-2.0.&nbsp; **Minimal & native** — small binaries, audited supply chain.
 
-## 🤝 Contributing & security
+## 🤝 Contributing
 
-- **Issues** are open to everyone — reporting bugs is welcome and valuable.
-- **Pull requests** are invitation-only; this code touches kernel-level surfaces (SSH, firewall, ports).
-- Report vulnerabilities **privately** — see [`SECURITY.md`](https://github.com/Glyndor/.github/blob/main/SECURITY.md).
-- Branch flow, commit conventions and labels live in [`CONTRIBUTING.md`](https://github.com/Glyndor/.github/blob/main/CONTRIBUTING.md).
+**Issues** are open to everyone. **Pull requests** are invitation-only — this code touches kernel-level surfaces (SSH, firewall, ports). Report vulnerabilities privately via [`SECURITY.md`](https://github.com/Glyndor/.github/blob/main/SECURITY.md); flow and conventions in [`CONTRIBUTING.md`](https://github.com/Glyndor/.github/blob/main/CONTRIBUTING.md).
 
 ---
 
