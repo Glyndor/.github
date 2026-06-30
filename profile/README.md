@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/logo.webp" alt="Glyndor" width="130" />
-
-# Glyndor
+<a href="https://glyndor.net"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/banner.png" alt="Glyndor — open-source, secure-by-default tooling" width="820" /></a>
 
 ### Secure, self-hosted infrastructure you actually own.
 
