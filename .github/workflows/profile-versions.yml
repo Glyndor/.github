@@ -53,8 +53,16 @@ jobs:
         # token (fine-grained PAT or App) as VERSION_BOT_TOKEN to enable it.
         env:
           GH_TOKEN: ${{ secrets.VERSION_BOT_TOKEN || github.token }}
+          VERSION_BOT_TOKEN: ${{ secrets.VERSION_BOT_TOKEN }}
         run: |
           set -euo pipefail
+          # Without the scoped token we can't open the PR, and main is
+          # protected, so there's nothing to do — skip before pushing anything
+          # rather than leaving an orphan branch behind on every run.
+          if [ -z "${VERSION_BOT_TOKEN:-}" ]; then
+            echo "::warning::VERSION_BOT_TOKEN is not set; skipping the version-sync PR. Set it (fine-grained PAT or App) to enable it."
+            exit 0
+          fi
           branch="chore/profile-versions-${{ github.run_id }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -62,9 +70,15 @@ jobs:
           git add "$FILE"
           git commit -s -m "chore: sync release versions in profile README"
           git push origin "$branch"
-          gh pr create \
+          # If the PR can't be created, delete the branch we just pushed so a
+          # failed run never leaves an orphan behind.
+          if ! gh pr create \
             --base main \
             --head "$branch" \
             --title "chore: sync release versions in profile README" \
             --body "Automated refresh of the release tags shown on the organization profile." \
-            --label "type:chore,prio:P3,effort:XS,status:ready"
+            --label "type:chore,prio:P3,effort:XS,status:ready"; then
+            echo "::error::Could not open the pull request; deleting the orphan branch $branch."
+            git push origin --delete "$branch" || true
+            exit 1
+          fi
