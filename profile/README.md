@@ -20,33 +20,107 @@ lightweight, and built to OWASP ASVS Level 3.
 
 ### 🖥️ The platform
 
-| Project | What it is | |
-|---|---|---|
-| [**helmly**](https://github.com/Glyndor/helmly) | Self-hosted hosting panel — firewall, SSH, containers and WireGuard tunnels, one server or a hardened fleet. A cPanel / Plesk / Coolify alternative. | ![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-30363d?style=flat-square&logo=nextdotjs&logoColor=white) ![status](https://img.shields.io/badge/in_development-d29922?style=flat-square) |
-| [**helmly-agent**](https://github.com/Glyndor/helmly-agent) | Hardened per-server agent — Ed25519-signed commands and telemetry over WireGuard + mTLS. | ![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/helmly-agent?style=flat-square&color=3fb950&label=) |
-| [**podup**](https://github.com/Glyndor/podup) | `docker-compose` translated to rootless Podman — Rust library and a drop-in CLI. | ![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/podup?style=flat-square&color=3fb950&label=) |
+<table>
+<tr>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/helmly"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/helmly.png" alt="helmly — secure self-hosted hosting panel" width="420" /></a>
+
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-30363d?style=flat-square&logo=nextdotjs&logoColor=white) ![status](https://img.shields.io/badge/in_development-d29922?style=flat-square)
+
+</td>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/helmly-agent"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/helmly-agent.png" alt="helmly-agent — hardened on-server executor" width="420" /></a>
+
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/helmly-agent?style=flat-square&color=3fb950&label=)
+
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/podup"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/podup.png" alt="podup — docker-compose on rootless Podman" width="420" /></a>
+
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/podup?style=flat-square&color=3fb950&label=)
+
+</td>
+<td width="50%"></td>
+</tr>
+</table>
 
 ### ✉️ Mail
 
-| Project | What it is | |
-|---|---|---|
-| [**epistle**](https://github.com/Glyndor/epistle) | Self-hosted mail server — SMTP, IMAP and modern email security behind an API and CLI. Standalone or panel-integrated. | ![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/epistle?style=flat-square&color=3fb950&label=) |
-| [**epistle-panel**](https://github.com/Glyndor/epistle-panel) | Next.js admin UI for the mail server — domains, mailboxes, security and queues on top of the mail API. | ![Next.js](https://img.shields.io/badge/Next.js-30363d?style=flat-square&logo=nextdotjs&logoColor=white) ![status](https://img.shields.io/badge/in_development-d29922?style=flat-square) |
+<table>
+<tr>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/epistle"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/epistle.png" alt="epistle — headless self-hosted mail server" width="420" /></a>
+
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/epistle?style=flat-square&color=3fb950&label=)
+
+</td>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/epistle-panel"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/epistle-panel.png" alt="epistle-panel — web UI for the Epistle mail server" width="420" /></a>
+
+![Next.js](https://img.shields.io/badge/Next.js-30363d?style=flat-square&logo=nextdotjs&logoColor=white) ![status](https://img.shields.io/badge/in_development-d29922?style=flat-square)
+
+</td>
+</tr>
+</table>
 
 ### 🧰 Developer tools
 
-| Project | What it is | |
-|---|---|---|
-| [**authcore**](https://github.com/Glyndor/authcore) | Drop-in auth for Go — Argon2id passwords, EdDSA JWTs with refresh rotation, opaque API keys, OIDC + OAuth2. Zero boilerplate. | ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/authcore?style=flat-square&color=3fb950&label=) |
-| [**unitpm**](https://github.com/Glyndor/unitpm) | Fast, secure process manager for Linux — the zero-overhead, systemd-native alternative to PM2. | ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![status](https://img.shields.io/badge/in_development-d29922?style=flat-square) |
-| [**klyradb**](https://github.com/Glyndor/klyradb) | Desktop app to manage isolated PostgreSQL, MySQL, MariaDB and Redis instances on Linux — DBngin for Ubuntu. | ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/klyradb?style=flat-square&color=3fb950&label=) |
+<table>
+<tr>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/authcore"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/authcore.png" alt="authcore — secure-by-default Go auth library" width="420" /></a>
+
+![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/authcore?style=flat-square&color=3fb950&label=)
+
+</td>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/unitpm"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/unitpm.png" alt="unitpm — process and unit manager" width="420" /></a>
+
+![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![status](https://img.shields.io/badge/in_development-d29922?style=flat-square)
+
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/klyradb"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/klyradb.png" alt="klyradb — local database manager, no Docker" width="420" /></a>
+
+![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/klyradb?style=flat-square&color=3fb950&label=)
+
+</td>
+<td width="50%"></td>
+</tr>
+</table>
 
 ### 🧩 Browser extensions
 
-| Project | What it is | |
-|---|---|---|
-| [**specio**](https://github.com/Glyndor/specio) | Detects the tech a site is built with — CMS, frameworks, analytics, CDNs, servers, fonts. An open Wappalyzer alternative. | ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/specio?style=flat-square&color=3fb950&label=) |
-| [**viden**](https://github.com/Glyndor/viden) | Detects and downloads the video playing on a page — including hidden or obscured streams (MP4, HLS, DASH). | ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![status](https://img.shields.io/badge/coming_soon-1f6feb?style=flat-square) |
+<table>
+<tr>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/specio"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/specio.png" alt="specio — website tech-stack detector" width="420" /></a>
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/specio?style=flat-square&color=3fb950&label=)
+
+</td>
+<td width="50%" align="center">
+
+<a href="https://github.com/Glyndor/viden"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/viden.png" alt="viden — video stream downloader" width="420" /></a>
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![status](https://img.shields.io/badge/coming_soon-1f6feb?style=flat-square)
+
+</td>
+</tr>
+</table>
 
 ### 🔭 How it fits together
 
