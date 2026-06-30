@@ -13,7 +13,7 @@ on:
     types: [release]
 
 # GITHUB_TOKEN can push the branch (contents) but not open the PR under the
-# org policy — that uses VERSION_BOT_TOKEN — so no pull-requests grant here.
+# org policy — that uses GLYNDOR_PROFILE_BOT_TOKEN — so no pull-requests grant here.
 permissions:
   contents: write
 
@@ -50,17 +50,17 @@ jobs:
       - name: Open pull request
         if: steps.refresh.outputs.changed == '1'
         # GITHUB_TOKEN cannot open PRs under the org policy; supply a scoped
-        # token (fine-grained PAT or App) as VERSION_BOT_TOKEN to enable it.
+        # token (fine-grained PAT or App) as GLYNDOR_PROFILE_BOT_TOKEN to enable it.
         env:
-          GH_TOKEN: ${{ secrets.VERSION_BOT_TOKEN || github.token }}
-          VERSION_BOT_TOKEN: ${{ secrets.VERSION_BOT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GLYNDOR_PROFILE_BOT_TOKEN || github.token }}
+          GLYNDOR_PROFILE_BOT_TOKEN: ${{ secrets.GLYNDOR_PROFILE_BOT_TOKEN }}
         run: |
           set -euo pipefail
           # Without the scoped token we can't open the PR, and main is
           # protected, so there's nothing to do — skip before pushing anything
           # rather than leaving an orphan branch behind on every run.
-          if [ -z "${VERSION_BOT_TOKEN:-}" ]; then
-            echo "::warning::VERSION_BOT_TOKEN is not set; skipping the version-sync PR. Set it (fine-grained PAT or App) to enable it."
+          if [ -z "${GLYNDOR_PROFILE_BOT_TOKEN:-}" ]; then
+            echo "::warning::GLYNDOR_PROFILE_BOT_TOKEN is not set; skipping the version-sync PR. Set it (fine-grained PAT or App) to enable it."
             exit 0
           fi
           branch="chore/profile-versions-${{ github.run_id }}"
