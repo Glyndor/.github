@@ -85,7 +85,7 @@ lightweight, and built to OWASP ASVS Level 3.
 
 <a href="https://github.com/Glyndor/unitpm"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/unitpm.png" alt="unitpm — process and unit manager" width="420" /></a>
 
-![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![status](https://img.shields.io/badge/in_development-d29922?style=flat-square)
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![status](https://img.shields.io/badge/in_development-d29922?style=flat-square)
 
 </td>
 </tr>
@@ -94,7 +94,7 @@ lightweight, and built to OWASP ASVS Level 3.
 
 <a href="https://github.com/Glyndor/klyradb"><img src="https://raw.githubusercontent.com/Glyndor/.github/main/profile/assets/repos/klyradb.png" alt="klyradb — local database manager, no Docker" width="420" /></a>
 
-![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/klyradb?style=flat-square&color=3fb950&label=)
+![Rust](https://img.shields.io/badge/Rust-CE412B?style=flat-square&logo=rust&logoColor=white) ![Tauri](https://img.shields.io/badge/Tauri-24C8DB?style=flat-square&logo=tauri&logoColor=white) ![release](https://img.shields.io/github/v/release/Glyndor/klyradb?style=flat-square&color=3fb950&label=)
 
 </td>
 <td width="50%"></td>
