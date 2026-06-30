@@ -1,0 +1,15 @@
+name: DCO
+
+# Self-CI: this repo requires a Signed-off-by trailer on every commit, so it
+# runs its own reusable dco.yml on its pull requests (dogfooding the gate it
+# ships to every other Glyndor repository).
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    uses: ./.github/workflows/dco.yml
