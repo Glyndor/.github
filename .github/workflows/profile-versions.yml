@@ -72,13 +72,16 @@ jobs:
           git push origin "$branch"
           # If the PR can't be created, delete the branch we just pushed so a
           # failed run never leaves an orphan behind.
-          if ! gh pr create \
+          if ! pr_url=$(gh pr create \
             --base main \
             --head "$branch" \
             --title "chore: sync release versions in profile README" \
             --body "Automated refresh of the release tags shown on the organization profile." \
-            --label "type:chore,prio:P3,effort:XS,status:ready"; then
+            --label "type:chore,prio:P3,effort:XS,status:ready"); then
             echo "::error::Could not open the pull request; deleting the orphan branch $branch."
             git push origin --delete "$branch" || true
             exit 1
           fi
+          # These are trivial version-number bumps, so let them merge themselves
+          # once the required checks pass — squash, matching the merge policy.
+          gh pr merge "$pr_url" --squash --auto
