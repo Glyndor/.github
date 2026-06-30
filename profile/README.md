@@ -122,16 +122,6 @@ lightweight, and built to OWASP ASVS Level 3.
 </tr>
 </table>
 
-### 🔭 How it fits together
-
-```mermaid
-flowchart LR
-  helmly["helmly panel"] -->|signed commands| agent["helmly-agent"]
-  agent -->|rootless containers| podup["podup"]
-  helmly -. manages .-> epistle["epistle"]
-  epistle --> ep["epistle-panel"]
-```
-
 ### 🛡️ Principles
 
 **Secure by default** — the most restrictive config ships active.&nbsp; **You own it** — native binaries, no SaaS lock-in.&nbsp; **Open source** — every project public and Apache-2.0.&nbsp; **Minimal & native** — small binaries, audited supply chain.
