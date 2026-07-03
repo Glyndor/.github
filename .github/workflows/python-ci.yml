@@ -11,14 +11,18 @@ on:
         description: Python version
         type: string
         default: "3.13"
+      # Tool versions default to a pin, not to latest: an unpinned ruff/pytest
+      # would change lint/test behaviour for every Python consumer the day a
+      # new release ships, with no per-repo buffer. Bump the pins via a new
+      # `.github` release so the change is reviewable per repo.
       ruff-version:
-        description: ruff version to pin (empty = latest)
+        description: ruff version to pin
         type: string
-        default: ""
+        default: "0.12.0"
       pytest-version:
-        description: pytest version to pin (empty = latest)
+        description: pytest version to pin
         type: string
-        default: ""
+        default: "8.4.0"
       coverage-threshold:
         description: Minimum coverage percentage (0 disables the gate; uses pytest-cov)
         type: number
@@ -28,7 +32,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
   cancel-in-progress: true
 
 jobs:
@@ -48,7 +52,10 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ inputs.python-version }}
-          cache: pip
+          # `cache: pip` fails outright when no dependency file exists, even
+          # though the install step below handles that case — only enable the
+          # cache when there is something to key it on.
+          cache: ${{ hashFiles('**/requirements.txt', '**/pyproject.toml', '**/setup.py') != '' && 'pip' || '' }}
 
       - name: Install tooling and project
         run: |
