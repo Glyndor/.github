@@ -10,7 +10,7 @@ FUNDING), issue/PR templates, the org profile, and reusable CI workflows.
 # .github/workflows/ci.yml in any Glyndor repository
 jobs:
   rust:
-    uses: Glyndor/.github/.github/workflows/rust-ci.yml@<sha> # v1.7.0
+    uses: Glyndor-net/.github/.github/workflows/rust-ci.yml@<sha> # v1.7.0
     with:
       coverage-threshold: 70
 ```
@@ -22,7 +22,7 @@ jobs:
 - **Policy gates:** `dco`, `main-guard`, `line-limit`
 
 Pin to a release **commit SHA** with the version in a comment — Dependabot bumps
-it when a newer release ships. Allowed action sources: `actions/*`, `Glyndor/*`,
+it when a newer release ships. Allowed action sources: `actions/*`, `Glyndor-net/*`,
 and `oven-sh/setup-bun` (needed by `bun-ci`).
 
 ## Releasing
