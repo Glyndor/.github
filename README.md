@@ -16,7 +16,7 @@ jobs:
 ```
 
 - **CI:** `rust-ci`, `bun-ci`, `go-ci`, `python-ci`, `shell-ci`
-- **Rust supply chain:** `rust-audit`, `rust-supply-chain`, `rust-debian`
+- **Supply chain:** `rust-audit`, `rust-supply-chain`, `rust-debian`, `go-audit`
 - **Fuzz:** `rust-fuzz`, `go-fuzz`
 - **Release contracts:** `installer-contract`
 - **Policy gates:** `dco`, `main-guard`, `line-limit`
@@ -25,8 +25,8 @@ Pin to a release **commit SHA** with the version in a comment — Dependabot bum
 it when a newer release ships. Allowed action sources: `actions/*`, `Glyndor-net/*`,
 and `oven-sh/setup-bun` (needed by `bun-ci`).
 
-## Releasing
+## Versioning
 
-Tag `main` with semver — **major** for a breaking change to a reusable's inputs
-or behavior, **minor** for additive changes, **patch** for fixes:
-`gh release create vX.Y.Z --target <main-sha> --generate-notes`.
+Releases are semver tags on `main` — **major** for a breaking change to a
+reusable's inputs or behavior, **minor** for additive changes, **patch** for
+fixes.
