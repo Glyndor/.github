@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: rust-supply-chain-${{ github.workflow }}-${{ github.ref }}
+  group: rust-supply-chain-${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
   cancel-in-progress: true
 
 jobs:
