@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bun-ci-${{ github.workflow }}-${{ github.ref }}
+  group: bun-ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
   cancel-in-progress: true
 
 jobs:

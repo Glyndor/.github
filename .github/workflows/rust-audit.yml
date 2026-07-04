@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: rust-audit-${{ github.workflow }}-${{ github.ref }}
+  group: rust-audit-${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
   cancel-in-progress: true
 
 jobs:

@@ -1,12 +1,3 @@
 # OS
 .DS_Store
 Thumbs.db
-
-# Agent / AI-tool artifacts — never commit (zero AI trace).
-.claude/
-.agents/
-.cursor/
-.aider*
-.continue/
-.playwright-mcp/
-**/*-mcp/

@@ -2,6 +2,7 @@ name: Shell CI (reusable)
 
 # Lint every shell script in the repository: bash -n catches syntax errors,
 # shellcheck catches quoting, unset-variable and other correctness bugs.
+# Optionally runs the repository's shell test suite (`test-command`).
 
 on:
   workflow_call:
@@ -14,12 +15,20 @@ on:
         description: Minimum shellcheck severity to report (style|info|warning|error)
         type: string
         default: "style"
+      test-command:
+        description: Command running the repository's shell test suite (skipped when empty)
+        type: string
+        default: ""
+      apt-packages:
+        description: Space-separated apt packages the test suite needs
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: shell-ci-${{ github.workflow }}-${{ github.ref }}
+  group: shell-ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
   cancel-in-progress: true
 
 jobs:
@@ -62,3 +71,30 @@ jobs:
         run: |
           set -euo pipefail
           xargs -0 -r shellcheck --severity="$SEVERITY" < "$RUNNER_TEMP/shell-files"
+
+  test:
+    name: test
+    if: inputs.test-command != ''
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      TEST_COMMAND: ${{ inputs.test-command }}
+      APT_PACKAGES: ${{ inputs.apt-packages }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install test dependencies
+        run: |
+          set -euo pipefail
+          if [ -n "$APT_PACKAGES" ]; then
+            sudo apt-get update -qq
+            # shellcheck disable=SC2086 # intentional word-splitting of the package list
+            sudo apt-get install -y -qq $APT_PACKAGES
+          fi
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+          bash -c "$TEST_COMMAND"

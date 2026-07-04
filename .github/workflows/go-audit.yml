@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: go-audit-${{ github.workflow }}-${{ github.ref }}
+  group: go-audit-${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
   cancel-in-progress: true
 
 jobs:
