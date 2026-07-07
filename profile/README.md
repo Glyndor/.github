@@ -11,7 +11,7 @@ Website: glyndor.net
 
 | Repository | Language | Description |
 |---|---|---|
-| [helmly](https://github.com/Glyndor/helmly) | Rust / Next.js | Self-hosted VPS and container hosting panel |
+| [helmly](https://github.com/Glyndor/helmly) | Rust / TypeScript | Self-hosted VPS and container hosting panel |
 | [helmly-agent](https://github.com/Glyndor/helmly-agent) | Rust | On-server executor for helmly |
 | [podup](https://github.com/Glyndor/podup) | Rust | docker-compose translator and runner for rootless Podman |
 | [epistle](https://github.com/Glyndor/epistle) | Rust | Self-hosted, headless mail server (SMTP/IMAP/JMAP) |
