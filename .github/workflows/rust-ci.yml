@@ -7,6 +7,17 @@ on:
         description: Directory containing the Cargo workspace
         type: string
         default: "."
+      # Pinned, not `stable`: an unpinned toolchain moves on its own the day
+      # upstream ships a release, and every consumer's pull requests go red at
+      # once for a change nobody made. That is not hypothetical — Rust 1.97.0
+      # landed on 2026-07-07, widened a clippy lint, and reddened every open PR
+      # in podup until the lint was fixed. Bump this pin via a new `.github`
+      # release so each repo adopts the new toolchain deliberately, sees which
+      # lints it gained, and fixes them on its own schedule.
+      toolchain:
+        description: Rust toolchain to pin the build, lint and test jobs to
+        type: string
+        default: "1.97"
       coverage-threshold:
         description: Minimum line coverage percentage (0 disables the gate)
         type: number
@@ -58,9 +69,11 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt,clippy
-          rustup default stable
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$TOOLCHAIN"
 
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -88,9 +101,11 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup default "$TOOLCHAIN"
 
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -120,9 +135,11 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup default "$TOOLCHAIN"
 
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -148,9 +165,11 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
         run: |
-          rustup toolchain install stable --profile minimal --component llvm-tools
-          rustup default stable
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component llvm-tools
+          rustup default "$TOOLCHAIN"
 
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -230,9 +249,11 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup default "$TOOLCHAIN"
 
       - name: cargo publish --dry-run
         run: cargo publish --dry-run --locked
@@ -248,9 +269,11 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup default "$TOOLCHAIN"
 
       - name: Install cargo-semver-checks
         run: command -v cargo-semver-checks >/dev/null || cargo install cargo-semver-checks --locked
@@ -269,9 +292,11 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup default "$TOOLCHAIN"
 
       - name: Build docs with warnings denied
         env:
