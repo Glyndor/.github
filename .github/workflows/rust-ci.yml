@@ -130,6 +130,12 @@ jobs:
         os: ${{ fromJSON(inputs.extra-test-os) }}
     defaults:
       run:
+        # This is the only job that can land on a Windows runner, where the
+        # default shell is PowerShell — and there `$VAR` reads a PowerShell
+        # variable, not the environment, so every `env:` value silently becomes
+        # an empty string. Pin the shell so steps behave the same on all three
+        # OSes, as release.yml's cross-OS matrix already does.
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
