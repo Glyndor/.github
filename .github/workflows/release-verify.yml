@@ -24,6 +24,27 @@ name: Release verify (reusable)
 # real "podup (1.10.1) unstable; ..." line (grep -qE returns no-match, which
 # is fail-closed, but confusing); the correct pattern escapes them:
 # "^podup \(VERSION\)". Callers must escape their own metacharacters.
+#
+# extra-version-files' flat path:pattern form matches anywhere in the file,
+# not just the project's own entry — "Cargo.lock:version = \"VERSION\""
+# matches ANY dependency at that version. podup's own Cargo.lock has
+# httparse and hyper both at 1.10.1, so that flat pattern still passes even
+# when podup's own entry is the stale one. Anything not already scoped by a
+# unique prefix (debian/changelog's "^podup (" is; a lockfile's bare
+# "version = " line is not) needs the anchored path:anchor:pattern form
+# instead: pattern must match within the 3 lines following a line matching
+# anchor, and a missing anchor is its own distinct error, not a silent pass.
+#
+# Tags are mutable and this job re-resolves the tag name to a commit at
+# checkout time, so a later job in the same run has no way to guarantee it
+# builds the commit that was actually verified unless it's told which one
+# that was — hence the verified-sha output below (git rev-parse HEAD right
+# after checkout). Any job that builds or publishes after this one should
+# check out needs.verify.outputs.verified-sha (or assert it equals its own
+# HEAD), so a tag force-moved mid-run can't cause the build to diverge from
+# what verify attested. Callers should resolve their own tag input the same
+# way regardless of trigger:
+#   tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 on:
   workflow_call:
@@ -38,15 +59,22 @@ on:
         required: true
       extra-version-files:
         description: >-
-          Newline-separated path:grep-pattern pairs, each checked against the
-          resolved version with grep -E — e.g.
-          "debian/changelog:^podup \(VERSION\)" or
-          "Cargo.lock:version = \"VERSION\"". Escape any literal regex
-          metacharacter in the pattern (parens, dots, etc. — grep -E, not a
-          literal-string match); the literal token VERSION is substituted with
-          the resolved version before matching. Blank lines are skipped; every
-          non-blank entry must match its file or the job fails naming that
-          file. Default checks nothing extra.
+          Newline-separated entries, each either path:pattern (grep -E
+          against the whole file, e.g. "debian/changelog:^podup \(VERSION\)")
+          or path:anchor:pattern (pattern must match with grep -E within the
+          3 lines following a line matching anchor, e.g.
+          "Cargo.lock:name = \"podup\":version = \"VERSION\"" — use this form
+          whenever the pattern isn't already scoped to the right entry by a
+          unique prefix, since a bare "version = " match can hit an unrelated
+          dependency at the same version). A pattern containing a literal
+          colon is only supported in the anchored form, where everything
+          after the first two colons is the pattern. Escape any literal
+          regex metacharacter in anchor or pattern (parens, dots, etc. —
+          grep -E, not a literal-string match); the literal token VERSION is
+          substituted into both anchor and pattern before matching. Blank
+          lines are skipped; every non-blank entry must match its file (and
+          anchor, when given) or the job fails naming that file. Default
+          checks nothing extra.
         type: string
         default: ""
       tag:
@@ -57,6 +85,10 @@ on:
         description: Dependency-audit command to run after the version gates (e.g. "cargo audit --locked"); skipped when empty
         type: string
         default: ""
+    outputs:
+      verified-sha:
+        description: git rev-parse HEAD of the checked-out tag, captured right after checkout. Tags are mutable and can move after this job resolves them, so a job that builds/publishes after verification should check out this SHA (or assert it equals its own HEAD) instead of re-resolving the tag.
+        value: ${{ jobs.verify.outputs.verified-sha }}
 
 permissions:
   contents: read
@@ -69,12 +101,18 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-latest
+    outputs:
+      verified-sha: ${{ steps.resolve-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Resolve verified commit
+        id: resolve-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Tag must match the manifest version
         env:
@@ -135,35 +173,63 @@ jobs:
             case "$line" in
               *:*) ;;
               *)
-                echo "::error::Malformed extra-version-files entry '${line}' (expected path:grep-pattern)."
+                echo "::error::Malformed extra-version-files entry '${line}' (expected path:pattern or path:anchor:pattern)."
                 exit 1
                 ;;
             esac
-            file="${line%%:*}"
-            pattern_template="${line#*:}"
-            if [ -z "$file" ] || [ -z "$pattern_template" ]; then
-              echo "::error::Malformed extra-version-files entry '${line}' (expected path:grep-pattern)."
+            # path is the first field; when a second colon follows, it splits
+            # the remainder into anchor:pattern (the anchored form) — read
+            # leaves any further colons untouched in the last variable, so a
+            # pattern is only free to contain a literal colon in that form,
+            # as its tail.
+            IFS=: read -r file second rest <<<"$line"
+            if [ -z "$file" ] || [ -z "$second" ]; then
+              echo "::error::Malformed extra-version-files entry '${line}' (expected path:pattern or path:anchor:pattern)."
               exit 1
             fi
+            if [ -n "$rest" ]; then
+              anchor_template="$second"
+              pattern_template="$rest"
+            else
+              anchor_template=""
+              pattern_template="$second"
+            fi
+            anchor="${anchor_template//VERSION/$VERSION}"
             pattern="${pattern_template//VERSION/$VERSION}"
             if [ ! -f "$file" ]; then
               echo "::error file=${file}::extra-version-files: ${file} does not exist."
               exit 1
             fi
-            if ! grep -qE "$pattern" "$file"; then
-              echo "::error file=${file}::${file} does not match expected pattern '${pattern}' (version ${VERSION})."
-              exit 1
+            if [ -n "$anchor" ]; then
+              if ! grep -qE "$anchor" "$file"; then
+                echo "::error file=${file}::${file} does not contain expected anchor '${anchor}'."
+                exit 1
+              fi
+              if ! grep -A3 -E "$anchor" "$file" | grep -qE "$pattern"; then
+                echo "::error file=${file}::${file} does not match expected pattern '${pattern}' within 3 lines of anchor '${anchor}' (version ${VERSION})."
+                exit 1
+              fi
+              echo "OK: ${file} matches '${pattern}' near anchor '${anchor}'."
+            else
+              if ! grep -qE "$pattern" "$file"; then
+                echo "::error file=${file}::${file} does not match expected pattern '${pattern}' (version ${VERSION})."
+                exit 1
+              fi
+              echo "OK: ${file} matches '${pattern}'."
             fi
-            echo "OK: ${file} matches '${pattern}'."
           done <<< "$EXTRA_VERSION_FILES"
 
       - name: Tagged commit must be reachable from main
-        # workflow_call runs on the tag ref checked out above, not the caller's
-        # own default ref, so origin/main's history is not guaranteed to be
-        # present yet even with fetch-depth: 0 above (that fetches the tag's
-        # own ancestry, not necessarily a remote-tracking ref for main) —
-        # fetch it explicitly, and fail closed if the fetch itself fails
-        # rather than silently skipping the reachability gate.
+        # Checks ancestry against FETCH_HEAD, not a refs/remotes/origin/main
+        # tracking ref: the explicit `git fetch origin main` below is what
+        # guarantees FETCH_HEAD points at main's tip, regardless of whether
+        # the checkout step's own refspec happens to populate (or refresh) a
+        # origin/main tracking ref. Relying on that tracking ref instead
+        # would only work by accident of the checkout's fetch-depth, and
+        # would fail with a raw `fatal: Not a valid object name` — not this
+        # workflow's own error — the moment that behavior changed. Fail
+        # closed if the fetch itself fails rather than silently skipping the
+        # reachability gate.
         env:
           TAG: ${{ inputs.tag }}
         run: |
@@ -174,7 +240,7 @@ jobs:
           fi
 
           sha="$(git rev-parse HEAD)"
-          if ! git merge-base --is-ancestor "$sha" origin/main; then
+          if ! git merge-base --is-ancestor "$sha" FETCH_HEAD; then
             echo "::error::Commit ${sha} (tag ${TAG}) is not reachable from origin/main; releases must be cut from main."
             exit 1
           fi
