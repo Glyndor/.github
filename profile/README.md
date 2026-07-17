@@ -3,7 +3,7 @@
 Open-source, self-hosted infrastructure software: a hosting panel, a mail
 server, a compose-to-Podman translator, a process manager, an auth library, a
 local database manager, and two browser extensions. Rust, Go and TypeScript.
-Every repository is licensed Apache-2.0.
+Every repository is licensed MIT.
 
 Website: glyndor.net
 
