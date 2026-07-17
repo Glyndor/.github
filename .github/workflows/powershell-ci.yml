@@ -42,6 +42,14 @@ on:
           default scans the whole repository for *.ps1 files
         type: string
         default: "**/*.ps1"
+      exclude-rules:
+        description: >-
+          Comma-separated PSScriptAnalyzer rule names to exclude from the
+          gate (passed to -ExcludeRule), for rules a script violates on
+          purpose — e.g. PSAvoidUsingWriteHost in an installer that talks to
+          a human over stdout. Empty excludes nothing.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -70,6 +78,7 @@ jobs:
       - name: Run PSScriptAnalyzer
         env:
           SCRIPT_PATHS: ${{ inputs.paths }}
+          EXCLUDE_RULES: ${{ inputs.exclude-rules }}
         run: |
           # Get-ChildItem has no "**" recursion token and its own docs warn
           # against -Path + -Recurse for wildcard matching; split the glob
@@ -91,7 +100,11 @@ jobs:
             exit 0
           }
 
-          $findings = Invoke-ScriptAnalyzer -Path $files.FullName -Severity Error, Warning
+          $analyzerArgs = @{ Path = $files.FullName; Severity = "Error", "Warning" }
+          if ($env:EXCLUDE_RULES) {
+            $analyzerArgs.ExcludeRule = $env:EXCLUDE_RULES -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          }
+          $findings = Invoke-ScriptAnalyzer @analyzerArgs
 
           if ($findings) {
             $findings | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
