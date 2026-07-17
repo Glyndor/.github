@@ -86,9 +86,28 @@ jobs:
       - name: Generate third-party license attribution (NOTICES)
         run: cargo about generate "$ABOUT_TEMPLATE" > NOTICES.html
 
+      - name: Compute artifact name suffix
+        # Two same-run calls of this reusable with different working-directory
+        # inputs (e.g. two crates in one repo) must not collide on the fixed
+        # artifact name upload-artifact used to have; qualify it by
+        # working-directory instead. Artifact names reject "/" and other
+        # separator characters, so the raw input can't be interpolated as-is.
+        id: artifact-suffix
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        run: |
+          suffix="$WORKING_DIRECTORY"
+          suffix="${suffix#./}"
+          if [ "$suffix" = "." ]; then
+            suffix="root"
+          fi
+          suffix="$(printf '%s' "$suffix" | tr '/:<>|*?\\"' '-' | tr -s '-')"
+          suffix="$(printf '%s' "$suffix" | sed 's/^-*//; s/-*$//')"
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sbom-and-notices
+          name: sbom-and-notices-${{ steps.artifact-suffix.outputs.suffix }}
           path: |
             ${{ inputs.working-directory }}/**/*.cdx.json
             ${{ inputs.working-directory }}/NOTICES.html
