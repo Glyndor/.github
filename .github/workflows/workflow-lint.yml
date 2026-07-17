@@ -1,0 +1,76 @@
+name: Workflow lint (reusable)
+
+# Lint the CALLING repository's own workflow YAML with actionlint — the release
+# workflows and other per-repo callers that live outside this repository and
+# are today validated by nobody. This is where the phantom-required-check
+# naming mismatches and the PowerShell $VAR-under-pwsh trap have actually
+# shipped, because nothing caught them before a consumer's CI ran for real.
+# Contrast with actionlint.yml in this repository: that one is this repo's own
+# self-CI over ITS reusables; this one runs actionlint over the CALLER's
+# checkout, wherever the calling job invokes it from.
+#
+# actionlint's embedded shellcheck pass otherwise falls back to whatever
+# shellcheck the runner image ships, which floats independently of the org's
+# pinned version (shell-ci.yml). Installing the same pinned shellcheck here
+# and pointing actionlint at it with -shellcheck keeps that pass reproducible
+# too.
+
+on:
+  workflow_call:
+    inputs:
+      shellcheck-version:
+        description: Exact shellcheck release tag to install from koalaman/shellcheck for actionlint's embedded shellcheck pass; bumped via .github releases
+        type: string
+        default: "v0.11.0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflow-lint:
+    name: workflow-lint
+    runs-on: ubuntu-latest
+    env:
+      ACTIONLINT_VERSION: v1.7.12
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: "1.26"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: actionlint-cache
+        with:
+          path: ~/go/bin/actionlint
+          key: actionlint-${{ runner.os }}-${{ env.ACTIONLINT_VERSION }}
+
+      - name: Install actionlint
+        if: steps.actionlint-cache.outputs.cache-hit != 'true'
+        run: go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
+
+      - name: Install shellcheck
+        env:
+          SHELLCHECK_VERSION: ${{ inputs.shellcheck-version }}
+        run: |
+          set -euo pipefail
+          # Same pinned-download idiom as shell-ci.yml: fetch straight from
+          # koalaman/shellcheck's own release over HTTPS, pinned by tag rather
+          # than whatever the runner image happens to preinstall.
+          dir="$RUNNER_TEMP/shellcheck-bin"
+          mkdir -p "$dir"
+          curl -sSfL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | tar -xJ -C "$dir" --strip-components=1 "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          chmod +x "$dir/shellcheck"
+          echo "SHELLCHECK_BIN=$dir/shellcheck" >> "$GITHUB_ENV"
+
+      - name: Run actionlint over the caller's workflows
+        env:
+          SHELLCHECK_BIN: ${{ env.SHELLCHECK_BIN }}
+        run: actionlint -color "-shellcheck=${SHELLCHECK_BIN}"
