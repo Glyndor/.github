@@ -35,6 +35,12 @@ on:
         description: Exact version of the tool; bumped via .github releases
         type: string
         default: "0.13.2"
+      rss-limit-mb:
+        description: >-
+          libfuzzer -rss_limit_mb value in MiB; empty (the default) omits the
+          flag entirely, leaving libfuzzer's own default in effect
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -88,4 +94,10 @@ jobs:
           TARGET: ${{ matrix.target }}
           MAX_TOTAL_TIME: ${{ inputs.max-total-time }}
           FUZZ_TIMEOUT: ${{ inputs.timeout }}
-        run: cargo fuzz run "$TARGET" -- -max_total_time="$MAX_TOTAL_TIME" -timeout="$FUZZ_TIMEOUT"
+          RSS_LIMIT_MB: ${{ inputs.rss-limit-mb }}
+        run: |
+          libfuzzer_args=(-max_total_time="$MAX_TOTAL_TIME" -timeout="$FUZZ_TIMEOUT")
+          if [ -n "$RSS_LIMIT_MB" ]; then
+            libfuzzer_args+=(-rss_limit_mb="$RSS_LIMIT_MB")
+          fi
+          cargo fuzz run "$TARGET" -- "${libfuzzer_args[@]}"
