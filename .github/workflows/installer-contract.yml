@@ -22,7 +22,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: installer-contract-${{ github.workflow }}-${{ github.ref }}
+  # install-script distinguishes two contract checks in the same repo/ref
+  # (e.g. a repo with more than one installer), which would otherwise cancel
+  # each other's in-flight run.
+  group: installer-contract-${{ github.workflow }}-${{ github.ref }}-${{ inputs.install-script }}
   cancel-in-progress: true
 
 jobs:
