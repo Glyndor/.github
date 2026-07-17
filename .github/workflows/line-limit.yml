@@ -52,8 +52,10 @@ jobs:
         run: |
           set -euo pipefail
           ext_re="$(echo "$EXTS" | tr ' ' '|')"
+          ext_pattern="\.(${ext_re})\$"
           fail=0
-          while IFS= read -r f; do
+          while IFS= read -r -d '' f; do
+            [[ "$f" =~ $ext_pattern ]] || continue
             [ -f "$f" ] || continue
             case "$f" in
               vendor/*|*/vendor/*|*.min.*) continue ;;
@@ -80,7 +82,7 @@ jobs:
             elif [ "$n" -gt "$SOFT" ]; then
               echo "::warning file=$f::$f has $n code lines (soft limit $SOFT — look for a split point)"
             fi
-          done < <(git ls-files | grep -E "\.($ext_re)\$" || true)
+          done < <(git ls-files -z)
           if [ "$fail" -ne 0 ]; then
             echo "Some files exceed the ${HARD}-line hard limit."
             exit 1
