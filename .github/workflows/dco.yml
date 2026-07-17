@@ -87,7 +87,11 @@ jobs:
           set -euo pipefail
           bad=0
           stderr_file="$(mktemp)"
-          for m in $(git rev-list --merges "${BASE_SHA}..${HEAD_SHA}"); do
+          merges="$(git rev-list --merges "${BASE_SHA}..${HEAD_SHA}")" || {
+            echo "::error::could not enumerate merge commits between ${BASE_SHA} and ${HEAD_SHA} — history may be corrupted or incomplete; this check fails closed"
+            exit 1
+          }
+          for m in $merges; do
             read -r -a parents <<< "$(git show -s --format='%P' "$m")"
             if [ "${#parents[@]}" -ne 2 ]; then
               echo "::error::merge commit $m has ${#parents[@]} parents — evil-merge detection only supports ordinary two-parent merges; an octopus merge is rejected rather than assumed safe"
