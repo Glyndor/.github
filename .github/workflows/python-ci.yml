@@ -48,6 +48,8 @@ jobs:
       THRESHOLD: ${{ inputs.coverage-threshold }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -60,8 +62,10 @@ jobs:
       - name: Install tooling and project
         run: |
           set -euo pipefail
+          [ -n "$RUFF_VERSION" ] || { echo "::error::ruff-version must not be empty"; exit 1; }
+          [ -n "$PYTEST_VERSION" ] || { echo "::error::pytest-version must not be empty"; exit 1; }
           python -m pip install --upgrade pip
-          pip install "ruff${RUFF_VERSION:+==$RUFF_VERSION}" "pytest${PYTEST_VERSION:+==$PYTEST_VERSION}"
+          pip install "ruff==$RUFF_VERSION" "pytest==$PYTEST_VERSION"
           if [ "$THRESHOLD" != "0" ]; then pip install pytest-cov; fi
           if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -e .; fi
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -75,7 +79,7 @@ jobs:
       - name: pytest
         if: ${{ inputs.coverage-threshold == 0 }}
         run: |
-          if [ -d tests ] || [ -d test ]; then pytest; else echo "No tests directory — skipping"; fi
+          if [ -d tests ] || [ -d test ]; then pytest; else echo "::warning::no tests directory found — test job is a no-op"; fi
 
       - name: pytest with coverage gate
         if: ${{ inputs.coverage-threshold > 0 }}

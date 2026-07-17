@@ -75,6 +75,8 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:
@@ -107,6 +109,8 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:
@@ -147,6 +151,8 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:
@@ -177,6 +183,8 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:
@@ -216,12 +224,13 @@ jobs:
         env:
           PODMAN_SOCKET: ${{ steps.podman-socket.outputs.path }}
           COVERAGE_IGNORE_REGEX: ${{ inputs.coverage-ignore-regex }}
+          COVERAGE_THRESHOLD: ${{ inputs.coverage-threshold }}
         run: |
           cargo llvm-cov --locked --workspace --all-features --summary-only --json --output-path coverage.json \
             ${COVERAGE_IGNORE_REGEX:+--ignore-filename-regex "$COVERAGE_IGNORE_REGEX"}
           PCT=$(python3 -c "import json; print(json.load(open('coverage.json'))['data'][0]['totals']['lines']['percent'])")
-          echo "### Coverage: ${PCT}% (threshold: ${{ inputs.coverage-threshold }}%)" >> "$GITHUB_STEP_SUMMARY"
-          python3 - "$PCT" "${{ inputs.coverage-threshold }}" <<'EOF'
+          echo "### Coverage: ${PCT}% (threshold: ${COVERAGE_THRESHOLD}%)" >> "$GITHUB_STEP_SUMMARY"
+          python3 - "$PCT" "$COVERAGE_THRESHOLD" <<'EOF'
           import sys
           pct, threshold = float(sys.argv[1]), float(sys.argv[2])
           sys.exit(0 if pct >= threshold else 1)
@@ -236,6 +245,8 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install MSRV toolchain
         env:
@@ -266,6 +277,8 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:
@@ -286,6 +299,8 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:
@@ -311,6 +326,8 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:

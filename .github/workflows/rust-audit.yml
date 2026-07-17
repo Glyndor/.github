@@ -44,6 +44,8 @@ jobs:
       TOOL_VERSION: ${{ inputs.cargo-audit-version }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:
@@ -85,6 +87,8 @@ jobs:
       TOOL_VERSION: ${{ inputs.cargo-deny-version }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install toolchain
         env:

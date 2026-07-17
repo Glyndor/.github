@@ -10,6 +10,12 @@ firewall, containers, mail).
 Report through GitHub's private vulnerability disclosure on the affected
 repository: **Security tab → Report a vulnerability**.
 
+If a repository has detached from the organization's code-security baseline
+and no longer shows that button, open a draft security advisory on this
+repository, **Glyndor/.github**, instead, and name the affected repository
+in the report. If that repository has also detached, reach the owner
+through their GitHub profile: **@Jaro-c**.
+
 Include:
 
 - Repository and component affected
