@@ -12,13 +12,13 @@ on:
         type: string
         default: "."
       cargo-audit-version:
-        description: cargo-audit version requirement
+        description: Exact version of cargo-audit to install; bumped via .github releases
         type: string
-        default: "^0.22"
+        default: "0.22.2"
       cargo-deny-version:
-        description: cargo-deny version requirement
+        description: Exact version of cargo-deny to install; bumped via .github releases
         type: string
-        default: "^0.19"
+        default: "0.20.2"
 
 permissions:
   contents: read
@@ -48,7 +48,10 @@ jobs:
           key: cargo-audit-${{ runner.os }}-${{ inputs.cargo-audit-version }}
 
       - name: Install cargo-audit
-        run: command -v cargo-audit >/dev/null || cargo install cargo-audit --version "$TOOL_VERSION" --locked
+        # The leading "=" keeps this an exact pin: a bare version string in
+        # cargo's --version grammar defaults to caret ("^") matching, which
+        # would still let a later 0.22.x patch slip in unpinned.
+        run: command -v cargo-audit >/dev/null || cargo install cargo-audit --version "=$TOOL_VERSION" --locked
 
       - name: Run cargo audit
         # --deny warnings so unmaintained/unsound/yanked advisories also fail,
@@ -75,7 +78,8 @@ jobs:
           key: cargo-deny-${{ runner.os }}-${{ inputs.cargo-deny-version }}
 
       - name: Install cargo-deny
-        run: command -v cargo-deny >/dev/null || cargo install cargo-deny --version "$TOOL_VERSION" --locked
+        # Same exact-pin reasoning as cargo-audit above.
+        run: command -v cargo-deny >/dev/null || cargo install cargo-deny --version "=$TOOL_VERSION" --locked
 
       - name: Run cargo deny
         run: cargo deny check
