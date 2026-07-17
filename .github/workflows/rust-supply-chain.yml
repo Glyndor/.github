@@ -21,9 +21,9 @@ on:
         type: string
         default: "^0.5"
       cargo-about-version:
-        description: cargo-about version requirement
+        description: Exact version of cargo-about to install; bumped via .github releases
         type: string
-        default: "^0.9"
+        default: "0.9.1"
 
 permissions:
   contents: read
@@ -55,9 +55,11 @@ jobs:
           key: rust-supply-chain-${{ runner.os }}-${{ inputs.cyclonedx-version }}-${{ inputs.cargo-about-version }}
 
       - name: Install generators
+        # cargo-about's "=" keeps it an exact pin: a bare version string in
+        # cargo's --version grammar defaults to caret ("^") matching.
         run: |
           command -v cargo-cyclonedx >/dev/null || cargo install --locked cargo-cyclonedx --version "$CYCLONEDX_VERSION"
-          command -v cargo-about >/dev/null || cargo install --locked --features cli cargo-about --version "$ABOUT_VERSION"
+          command -v cargo-about >/dev/null || cargo install --locked --features cli cargo-about --version "=$ABOUT_VERSION"
 
       - name: Generate CycloneDX SBOM
         run: cargo cyclonedx --format json --all-features
