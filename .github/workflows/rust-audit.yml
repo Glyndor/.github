@@ -64,9 +64,10 @@ jobs:
           key: cargo-audit-${{ runner.os }}-${{ inputs.toolchain }}-${{ inputs.cargo-audit-version }}
 
       - name: Install cargo-audit
-        # The leading "=" keeps this an exact pin: a bare version string in
-        # cargo's --version grammar defaults to caret ("^") matching, which
-        # would still let a later 0.22.x patch slip in unpinned.
+        # A bare "X.Y.Z" passed to `cargo install --version` already installs
+        # that exact release — caret ("^") matching is a Cargo.toml dependency
+        # rule, not a `cargo install` one. The leading "=" here is redundant,
+        # kept only to make the exact pin explicit at a glance.
         run: command -v cargo-audit >/dev/null || cargo install cargo-audit --version "=$TOOL_VERSION" --locked
 
       - name: Run cargo audit
@@ -102,7 +103,8 @@ jobs:
           key: cargo-deny-${{ runner.os }}-${{ inputs.toolchain }}-${{ inputs.cargo-deny-version }}
 
       - name: Install cargo-deny
-        # Same exact-pin reasoning as cargo-audit above.
+        # Same exact-pin reasoning as cargo-audit above: the bare version is
+        # already exact, not caret-matched.
         run: command -v cargo-deny >/dev/null || cargo install cargo-deny --version "=$TOOL_VERSION" --locked
 
       - name: Run cargo deny

@@ -71,8 +71,9 @@ jobs:
           key: rust-supply-chain-${{ runner.os }}-${{ inputs.toolchain }}-${{ inputs.cyclonedx-version }}-${{ inputs.cargo-about-version }}
 
       - name: Install generators
-        # cargo-about's "=" keeps it an exact pin: a bare version string in
-        # cargo's --version grammar defaults to caret ("^") matching.
+        # `cargo install --version X.Y.Z` already installs that exact release;
+        # the leading "=" below is redundant, kept only for readability —
+        # caret ("^") matching is a Cargo.toml dependency rule, not this one.
         run: |
           command -v cargo-cyclonedx >/dev/null || cargo install --locked cargo-cyclonedx --version "=$CYCLONEDX_VERSION"
           command -v cargo-about >/dev/null || cargo install --locked --features cli cargo-about --version "=$ABOUT_VERSION"
