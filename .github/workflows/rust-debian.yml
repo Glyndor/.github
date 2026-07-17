@@ -72,6 +72,8 @@ jobs:
             ca-certificates build-essential dpkg-dev debhelper cargo rustc
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Confirm build dependencies are satisfiable
         run: dpkg-checkbuilddeps
@@ -128,6 +130,8 @@ jobs:
             ca-certificates build-essential cargo rustc
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Vendor dependencies (the only step allowed network access)
         run: |
