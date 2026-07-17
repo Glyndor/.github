@@ -31,7 +31,7 @@ name: Release verify (reusable)
 # httparse and hyper both at 1.10.1, so that flat pattern still passes even
 # when podup's own entry is the stale one. Anything not already scoped by a
 # unique prefix (debian/changelog's "^podup (" is; a lockfile's bare
-# "version = " line is not) needs the anchored path:anchor:pattern form
+# "version = " line is not) needs the anchored path:anchor::pattern form
 # instead: pattern must match within the 3 lines following a line matching
 # anchor, and a missing anchor is its own distinct error, not a silent pass.
 #
@@ -59,18 +59,27 @@ on:
         required: true
       extra-version-files:
         description: >-
-          Newline-separated entries, each either path:pattern (grep -E
-          against the whole file, e.g. "debian/changelog:^podup \(VERSION\)")
-          or path:anchor:pattern (pattern must match with grep -E within the
-          3 lines following a line matching anchor, e.g.
-          "Cargo.lock:name = \"podup\":version = \"VERSION\"" — use this form
-          whenever the pattern isn't already scoped to the right entry by a
-          unique prefix, since a bare "version = " match can hit an unrelated
-          dependency at the same version). A pattern containing a literal
-          colon is only supported in the anchored form, where everything
-          after the first two colons is the pattern. Escape any literal
-          regex metacharacter in anchor or pattern (parens, dots, etc. —
-          grep -E, not a literal-string match); the literal token VERSION is
+          Newline-separated entries. path is everything before the first
+          colon. What follows is the anchored form when it contains the
+          literal delimiter "::": anchor is the text before that first
+          "::", pattern is everything after it and may itself contain
+          further colons (e.g.
+          "Cargo.lock:name = \"podup\"::version = \"VERSION\"" — use this
+          form whenever the pattern isn't already scoped to the right entry
+          by a unique prefix, since a bare "version = " match can hit an
+          unrelated dependency at the same version). Otherwise the whole
+          remainder is a flat grep -E pattern, matched anywhere in the
+          file, colons and all (e.g.
+          "debian/changelog:^podup \(VERSION\)"; a flat pattern is free to
+          contain a literal colon, e.g. "notes.txt:Category: VERSION"
+          matches that literal text anywhere in the file). An anchor
+          containing a literal colon is not supported — the first "::"
+          found always wins. An anchor must also uniquely identify one
+          entry: if it matches more than one line, grep -A3 prints a
+          window per match and they are concatenated before the pattern
+          check runs against the combined text. Escape any literal regex
+          metacharacter in anchor or pattern (parens, dots, etc. — grep -E,
+          not a literal-string match); the literal token VERSION is
           substituted into both anchor and pattern before matching. Blank
           lines are skipped; every non-blank entry must match its file (and
           anchor, when given) or the job fails naming that file. Default
@@ -177,23 +186,30 @@ jobs:
                 exit 1
                 ;;
             esac
-            # path is the first field; when a second colon follows, it splits
-            # the remainder into anchor:pattern (the anchored form) — read
-            # leaves any further colons untouched in the last variable, so a
-            # pattern is only free to contain a literal colon in that form,
-            # as its tail.
-            IFS=: read -r file second rest <<<"$line"
-            if [ -z "$file" ] || [ -z "$second" ]; then
+            # path is everything before the first colon. Anchored vs flat is
+            # then decided by a substring test on the remainder, not by
+            # counting colons: only the literal delimiter "::" switches to
+            # the anchored form (anchor before it, pattern after — which may
+            # itself contain further colons). Otherwise the whole remainder
+            # is the flat pattern, colons and all, so a flat entry whose
+            # pattern happens to contain a colon (e.g.
+            # "notes.txt:Category: VERSION") is never misread as anchored.
+            file="${line%%:*}"
+            remainder="${line#*:}"
+            if [ -z "$file" ]; then
               echo "::error::Malformed extra-version-files entry '${line}' (expected path:pattern or path:anchor:pattern)."
               exit 1
             fi
-            if [ -n "$rest" ]; then
-              anchor_template="$second"
-              pattern_template="$rest"
-            else
-              anchor_template=""
-              pattern_template="$second"
-            fi
+            case "$remainder" in
+              *::*)
+                anchor_template="${remainder%%::*}"
+                pattern_template="${remainder#*::}"
+                ;;
+              *)
+                anchor_template=""
+                pattern_template="$remainder"
+                ;;
+            esac
             anchor="${anchor_template//VERSION/$VERSION}"
             pattern="${pattern_template//VERSION/$VERSION}"
             if [ ! -f "$file" ]; then
