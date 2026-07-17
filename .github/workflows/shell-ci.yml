@@ -15,6 +15,10 @@ on:
         description: Minimum shellcheck severity to report (style|info|warning|error)
         type: string
         default: "style"
+      shellcheck-version:
+        description: Exact shellcheck release tag to install from koalaman/shellcheck; bumped via .github releases
+        type: string
+        default: "v0.11.0"
       test-command:
         description: Command running the repository's shell test suite (skipped when empty)
         type: string
@@ -52,11 +56,30 @@ jobs:
           find . -type f \( -name '*.sh' -o -name '*.bash' \) \
             -not -path './.git/*' -print0 >> "$list"
           # Extensionless scripts whose shebang names a shell (hooks, bin/ tools).
+          # Restricted to sh/bash/dash: shellcheck cannot lint ksh or zsh, and
+          # running it against them anyway produces false reds rather than
+          # real findings.
           while IFS= read -r -d '' f; do
-            if head -n1 "$f" | grep -qE '^#!.*(/| )(sh|bash|dash|ksh|zsh)([[:space:]]|$)'; then
+            if head -n1 "$f" | grep -qE '^#!.*(/| )(sh|bash|dash)([[:space:]]|$)'; then
               printf '%s\0' "$f" >> "$list"
             fi
           done < <(find . -type f ! -name '*.*' -not -path './.git/*' -print0)
+
+      - name: Install shellcheck
+        env:
+          SHELLCHECK_VERSION: ${{ inputs.shellcheck-version }}
+        run: |
+          set -euo pipefail
+          # Pinned by version, not whatever shellcheck the runner image
+          # happens to ship — the version pin is the control here; the
+          # tarball comes straight from koalaman/shellcheck's own GitHub
+          # release over HTTPS, so there is no separate checksum to embed.
+          dir="$RUNNER_TEMP/shellcheck-bin"
+          mkdir -p "$dir"
+          curl -sSfL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | tar -xJ -C "$dir" --strip-components=1 "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          chmod +x "$dir/shellcheck"
+          echo "$dir" >> "$GITHUB_PATH"
 
       - name: Syntax check
         run: |
