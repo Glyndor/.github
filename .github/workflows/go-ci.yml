@@ -38,6 +38,7 @@ jobs:
 
       - name: gofmt
         run: |
+          set -euo pipefail
           UNFORMATTED=$(gofmt -l .)
           if [ -n "$UNFORMATTED" ]; then
             echo "Files not gofmt-formatted:" && echo "$UNFORMATTED" && exit 1
