@@ -11,6 +11,12 @@ on:
         description: Directory containing the Cargo workspace
         type: string
         default: "."
+      # Pinned, not the runner's floating preinstalled Rust — see rust-ci.yml's
+      # toolchain input for why an unpinned toolchain is a problem.
+      toolchain:
+        description: Rust toolchain to pin the audit and deny jobs to
+        type: string
+        default: "1.97"
       cargo-audit-version:
         description: Exact version of cargo-audit to install; bumped via .github releases
         type: string
@@ -39,13 +45,23 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup default "$TOOLCHAIN"
+
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/bin
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
-          key: cargo-audit-${{ runner.os }}-${{ inputs.cargo-audit-version }}
+          # The toolchain is part of the key: a cache built under an older
+          # pin must not survive a bump via the `command -v ... ||`
+          # short-circuit below, or the pin would be silently ignored.
+          key: cargo-audit-${{ runner.os }}-${{ inputs.toolchain }}-${{ inputs.cargo-audit-version }}
 
       - name: Install cargo-audit
         # The leading "=" keeps this an exact pin: a bare version string in
@@ -69,13 +85,21 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ inputs.toolchain }}
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup default "$TOOLCHAIN"
+
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/bin
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
-          key: cargo-deny-${{ runner.os }}-${{ inputs.cargo-deny-version }}
+          # Same reasoning as cargo-audit's cache key above.
+          key: cargo-deny-${{ runner.os }}-${{ inputs.toolchain }}-${{ inputs.cargo-deny-version }}
 
       - name: Install cargo-deny
         # Same exact-pin reasoning as cargo-audit above.
