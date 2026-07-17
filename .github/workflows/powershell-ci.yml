@@ -1,0 +1,102 @@
+name: PowerShell CI (reusable)
+
+# PSScriptAnalyzer lint for repositories shipping .ps1 scripts (podup's
+# install.ps1 today; unitpm and klyradb are expected to gain their own
+# PowerShell installers later). Replaces podup's inline
+# .github/workflows/lint-powershell.yml with one reviewed implementation —
+# the swap itself is Phase 4.2, not part of this change.
+#
+# Runner is windows-latest and `defaults: run: shell: pwsh` is deliberate, not
+# an oversight: the CI standard's rule that a reusable job must default to
+# bash on a non-Linux runner exists because `$VAR` under PowerShell reads a
+# PowerShell variable, not the environment, so env-passed values silently
+# become empty strings. That trap only bites a job whose *content* is meant to
+# be POSIX shell running on Windows. This job's content IS PowerShell, so pwsh
+# is the correct shell, not the thing being guarded against — and every input
+# below is still read via `$env:VAR` (pwsh's real environment-variable syntax)
+# rather than a bare `$VAR`, for the same reason the standard calls out.
+#
+# pssa-version's default was checked against the live PowerShell Gallery
+# (podup's own lint-powershell.yml has no pin at all — floats on whatever
+# `Install-Module PSScriptAnalyzer -Force` resolves to that day); 1.25.0 was
+# the current non-prerelease release at the time this default was set.
+#
+# `paths` is a "<dir>/**/<pattern>"-shaped glob (default "**/*.ps1"), but the
+# **-segment is stripped rather than handed to Get-ChildItem: its own docs
+# warn against combining -Path with -Recurse for wildcard matching and confirm
+# there is no "**" arbitrary-depth token at all — the documented way to match
+# a pattern at every depth is -LiteralPath (a plain directory) + -Recurse +
+# -Include, which is what the step below builds from this input.
+
+on:
+  workflow_call:
+    inputs:
+      pssa-version:
+        description: Exact PSScriptAnalyzer version to install from the PowerShell Gallery; bumped via .github releases
+        type: string
+        default: "1.25.0"
+      paths:
+        description: >-
+          "<dir>/**/<pattern>"-shaped glob (relative to the repository root)
+          matching the PowerShell scripts to analyze at any depth under <dir>;
+          default scans the whole repository for *.ps1 files
+        type: string
+        default: "**/*.ps1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: powershell-ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.paths }}
+  cancel-in-progress: true
+
+jobs:
+  pssa:
+    name: pssa
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install PSScriptAnalyzer
+        env:
+          PSSA_VERSION: ${{ inputs.pssa-version }}
+        run: Install-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Force -Scope CurrentUser
+
+      - name: Run PSScriptAnalyzer
+        env:
+          SCRIPT_PATHS: ${{ inputs.paths }}
+        run: |
+          # Get-ChildItem has no "**" recursion token and its own docs warn
+          # against -Path + -Recurse for wildcard matching; split the glob
+          # into a literal base directory and an -Include pattern instead,
+          # dropping any "**" segment since -Recurse already covers any depth.
+          $leaf = Split-Path -Path $env:SCRIPT_PATHS -Leaf
+          $dirPart = Split-Path -Path $env:SCRIPT_PATHS -Parent
+          $dirSegments = $dirPart -split '[\\/]' | Where-Object { $_ -and $_ -ne '**' }
+          $baseDir = if ($dirSegments) { $dirSegments -join [IO.Path]::DirectorySeparatorChar } else { '.' }
+
+          if (-not (Test-Path -LiteralPath $baseDir)) {
+            Write-Host "Base directory '$baseDir' (from paths '$env:SCRIPT_PATHS') does not exist; nothing to check."
+            exit 0
+          }
+
+          $files = Get-ChildItem -LiteralPath $baseDir -Recurse -Include $leaf -File
+          if (-not $files) {
+            Write-Host "No PowerShell scripts matched '$env:SCRIPT_PATHS'; nothing to check."
+            exit 0
+          }
+
+          $findings = Invoke-ScriptAnalyzer -Path $files.FullName -Severity Error, Warning
+
+          if ($findings) {
+            $findings | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+            Write-Error "PSScriptAnalyzer reported $($findings.Count) Error/Warning finding(s)."
+            exit 1
+          }
+
+          Write-Host "PSScriptAnalyzer: no Error or Warning findings."

@@ -1,0 +1,269 @@
+name: Release verify (reusable)
+
+# Extracts the org's most dangerous copy-pasted logic: the release-workflow
+# verify job every product's release.yml has hand-rolled. This is the 1.9.0
+# lesson — podup shipped a .deb labelled 1.8.0 because debian/changelog
+# disagreed with Cargo.toml, and the same release rotated the signing key, so
+# apt (the one path left for already-installed users) was the one that broke.
+# A human comparing version strings by eye is not a control; the release only
+# runs once, at tag time, and by then the mistake is immutable. Every gate
+# below is one reviewed implementation instead of N hand-copies drifting apart.
+#
+# Checkout is pinned to `ref: inputs.tag`, not left to the run's default ref.
+# That's what lets a workflow_dispatch re-verify an arbitrary past tag, and
+# it's also why the reachability gate below resolves the commit with
+# `git rev-parse HEAD` after that checkout rather than reading `$GITHUB_SHA` —
+# GITHUB_SHA reflects the event that triggered the run (for a workflow_dispatch
+# fired from the default branch, that is NOT the tag's commit), so it would
+# silently check the wrong commit's ancestry on exactly the re-run path this
+# input exists for.
+#
+# extra-version-files patterns are grep -E (extended regex), not a literal
+# string match — unescaped parens are a grouping metacharacter, not literal
+# characters. "^podup (VERSION)" silently fails to match debian/changelog's
+# real "podup (1.10.1) unstable; ..." line (grep -qE returns no-match, which
+# is fail-closed, but confusing); the correct pattern escapes them:
+# "^podup \(VERSION\)". Callers must escape their own metacharacters.
+#
+# extra-version-files' flat path:pattern form matches anywhere in the file,
+# not just the project's own entry — "Cargo.lock:version = \"VERSION\""
+# matches ANY dependency at that version. podup's own Cargo.lock has
+# httparse and hyper both at 1.10.1, so that flat pattern still passes even
+# when podup's own entry is the stale one. Anything not already scoped by a
+# unique prefix (debian/changelog's "^podup (" is; a lockfile's bare
+# "version = " line is not) needs the anchored path:anchor::pattern form
+# instead: pattern must match within the 3 lines following a line matching
+# anchor, and a missing anchor is its own distinct error, not a silent pass.
+#
+# Tags are mutable and this job re-resolves the tag name to a commit at
+# checkout time, so a later job in the same run has no way to guarantee it
+# builds the commit that was actually verified unless it's told which one
+# that was — hence the verified-sha output below (git rev-parse HEAD right
+# after checkout). Any job that builds or publishes after this one should
+# check out needs.verify.outputs.verified-sha (or assert it equals its own
+# HEAD), so a tag force-moved mid-run can't cause the build to diverge from
+# what verify attested. Callers should resolve their own tag input the same
+# way regardless of trigger:
+#   tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+on:
+  workflow_call:
+    inputs:
+      manifest-file:
+        description: Path to the manifest file whose version is authoritative (e.g. Cargo.toml, package.json); ignored when manifest-kind is go
+        type: string
+        required: true
+      manifest-kind:
+        description: Manifest format determining how the version is extracted — cargo (first `version = "X"` in the Cargo.toml [package] section), node (package.json .version via jq), or go (modules are versioned by the tag itself; manifest comparison is skipped, other gates still run)
+        type: string
+        required: true
+      extra-version-files:
+        description: >-
+          Newline-separated entries. path is everything before the first
+          colon. What follows is the anchored form when it contains the
+          literal delimiter "::": anchor is the text before that first
+          "::", pattern is everything after it and may itself contain
+          further colons (e.g.
+          "Cargo.lock:name = \"podup\"::version = \"VERSION\"" — use this
+          form whenever the pattern isn't already scoped to the right entry
+          by a unique prefix, since a bare "version = " match can hit an
+          unrelated dependency at the same version). Otherwise the whole
+          remainder is a flat grep -E pattern, matched anywhere in the
+          file, colons and all (e.g.
+          "debian/changelog:^podup \(VERSION\)"; a flat pattern is free to
+          contain a literal colon, e.g. "notes.txt:Category: VERSION"
+          matches that literal text anywhere in the file). An anchor
+          containing a literal colon is not supported — the first "::"
+          found always wins. An anchor must also uniquely identify one
+          entry: if it matches more than one line, grep -A3 prints a
+          window per match and they are concatenated before the pattern
+          check runs against the combined text. Escape any literal regex
+          metacharacter in anchor or pattern (parens, dots, etc. — grep -E,
+          not a literal-string match); the literal token VERSION is
+          substituted into both anchor and pattern before matching. Blank
+          lines are skipped; every non-blank entry must match its file (and
+          anchor, when given) or the job fails naming that file. Default
+          checks nothing extra.
+        type: string
+        default: ""
+      tag:
+        description: The tag being verified, e.g. the github.ref_name context value on a tag push, or the caller's own workflow_dispatch tag input for a re-run
+        type: string
+        required: true
+      audit-command:
+        description: Dependency-audit command to run after the version gates (e.g. "cargo audit --locked"); skipped when empty
+        type: string
+        default: ""
+    outputs:
+      verified-sha:
+        description: git rev-parse HEAD of the checked-out tag, captured right after checkout. Tags are mutable and can move after this job resolves them, so a job that builds/publishes after verification should check out this SHA (or assert it equals its own HEAD) instead of re-resolving the tag.
+        value: ${{ jobs.verify.outputs.verified-sha }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    outputs:
+      verified-sha: ${{ steps.resolve-sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve verified commit
+        id: resolve-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Tag must match the manifest version
+        env:
+          MANIFEST_FILE: ${{ inputs.manifest-file }}
+          MANIFEST_KIND: ${{ inputs.manifest-kind }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${TAG#v}"
+          if [ "$VERSION" = "$TAG" ]; then
+            echo "::error::Tag '${TAG}' does not start with 'v'; expected e.g. v1.2.3."
+            exit 1
+          fi
+          echo "RESOLVED_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+          if [ "$MANIFEST_KIND" = "go" ]; then
+            echo "::notice::manifest-kind is 'go'; go modules are versioned by the tag itself, skipping manifest-version comparison."
+            exit 0
+          fi
+
+          case "$MANIFEST_KIND" in
+            cargo)
+              # Scope to the [package] table only: a workspace Cargo.toml can
+              # have other `version = "..."` lines ([workspace.package],
+              # dependency tables) that are not the crate's own version.
+              MANIFEST_VERSION="$(sed -n '/^\[package\]/,/^\[/p' "$MANIFEST_FILE" | grep -m1 '^version = ' | cut -d'"' -f2)"
+              ;;
+            node)
+              MANIFEST_VERSION="$(jq -r '.version' "$MANIFEST_FILE")"
+              ;;
+            *)
+              echo "::error::Unknown manifest-kind '${MANIFEST_KIND}'; expected cargo, node, or go."
+              exit 1
+              ;;
+          esac
+
+          if [ -z "$MANIFEST_VERSION" ] || [ "$MANIFEST_VERSION" = "null" ]; then
+            echo "::error file=${MANIFEST_FILE}::Could not extract a version from ${MANIFEST_FILE} (manifest-kind ${MANIFEST_KIND})."
+            exit 1
+          fi
+
+          if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "::error file=${MANIFEST_FILE}::Tag ${TAG} does not match ${MANIFEST_FILE} version ${MANIFEST_VERSION}."
+            exit 1
+          fi
+          echo "OK: tag ${TAG} matches ${MANIFEST_FILE} version ${MANIFEST_VERSION}."
+
+      - name: Every extra version file must agree
+        if: inputs.extra-version-files != ''
+        env:
+          EXTRA_VERSION_FILES: ${{ inputs.extra-version-files }}
+          VERSION: ${{ env.RESOLVED_VERSION }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            case "$line" in
+              *:*) ;;
+              *)
+                echo "::error::Malformed extra-version-files entry '${line}' (expected path:pattern or path:anchor:pattern)."
+                exit 1
+                ;;
+            esac
+            # path is everything before the first colon. Anchored vs flat is
+            # then decided by a substring test on the remainder, not by
+            # counting colons: only the literal delimiter "::" switches to
+            # the anchored form (anchor before it, pattern after — which may
+            # itself contain further colons). Otherwise the whole remainder
+            # is the flat pattern, colons and all, so a flat entry whose
+            # pattern happens to contain a colon (e.g.
+            # "notes.txt:Category: VERSION") is never misread as anchored.
+            file="${line%%:*}"
+            remainder="${line#*:}"
+            if [ -z "$file" ]; then
+              echo "::error::Malformed extra-version-files entry '${line}' (expected path:pattern or path:anchor:pattern)."
+              exit 1
+            fi
+            case "$remainder" in
+              *::*)
+                anchor_template="${remainder%%::*}"
+                pattern_template="${remainder#*::}"
+                ;;
+              *)
+                anchor_template=""
+                pattern_template="$remainder"
+                ;;
+            esac
+            anchor="${anchor_template//VERSION/$VERSION}"
+            pattern="${pattern_template//VERSION/$VERSION}"
+            if [ ! -f "$file" ]; then
+              echo "::error file=${file}::extra-version-files: ${file} does not exist."
+              exit 1
+            fi
+            if [ -n "$anchor" ]; then
+              if ! grep -qE "$anchor" "$file"; then
+                echo "::error file=${file}::${file} does not contain expected anchor '${anchor}'."
+                exit 1
+              fi
+              if ! grep -A3 -E "$anchor" "$file" | grep -qE "$pattern"; then
+                echo "::error file=${file}::${file} does not match expected pattern '${pattern}' within 3 lines of anchor '${anchor}' (version ${VERSION})."
+                exit 1
+              fi
+              echo "OK: ${file} matches '${pattern}' near anchor '${anchor}'."
+            else
+              if ! grep -qE "$pattern" "$file"; then
+                echo "::error file=${file}::${file} does not match expected pattern '${pattern}' (version ${VERSION})."
+                exit 1
+              fi
+              echo "OK: ${file} matches '${pattern}'."
+            fi
+          done <<< "$EXTRA_VERSION_FILES"
+
+      - name: Tagged commit must be reachable from main
+        # Checks ancestry against FETCH_HEAD, not a refs/remotes/origin/main
+        # tracking ref: the explicit `git fetch origin main` below is what
+        # guarantees FETCH_HEAD points at main's tip, regardless of whether
+        # the checkout step's own refspec happens to populate (or refresh) a
+        # origin/main tracking ref. Relying on that tracking ref instead
+        # would only work by accident of the checkout's fetch-depth, and
+        # would fail with a raw `fatal: Not a valid object name` — not this
+        # workflow's own error — the moment that behavior changed. Fail
+        # closed if the fetch itself fails rather than silently skipping the
+        # reachability gate.
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! git fetch --no-tags origin main; then
+            echo "::error::Could not fetch origin/main; cannot verify the tagged commit is reachable from main."
+            exit 1
+          fi
+
+          sha="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$sha" FETCH_HEAD; then
+            echo "::error::Commit ${sha} (tag ${TAG}) is not reachable from origin/main; releases must be cut from main."
+            exit 1
+          fi
+          echo "OK: ${sha} is reachable from origin/main."
+
+      - name: Run dependency audit
+        if: inputs.audit-command != ''
+        env:
+          AUDIT_COMMAND: ${{ inputs.audit-command }}
+        run: bash -c "$AUDIT_COMMAND"
