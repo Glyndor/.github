@@ -1,0 +1,187 @@
+name: Release verify (reusable)
+
+# Extracts the org's most dangerous copy-pasted logic: the release-workflow
+# verify job every product's release.yml has hand-rolled. This is the 1.9.0
+# lesson — podup shipped a .deb labelled 1.8.0 because debian/changelog
+# disagreed with Cargo.toml, and the same release rotated the signing key, so
+# apt (the one path left for already-installed users) was the one that broke.
+# A human comparing version strings by eye is not a control; the release only
+# runs once, at tag time, and by then the mistake is immutable. Every gate
+# below is one reviewed implementation instead of N hand-copies drifting apart.
+#
+# Checkout is pinned to `ref: inputs.tag`, not left to the run's default ref.
+# That's what lets a workflow_dispatch re-verify an arbitrary past tag, and
+# it's also why the reachability gate below resolves the commit with
+# `git rev-parse HEAD` after that checkout rather than reading `$GITHUB_SHA` —
+# GITHUB_SHA reflects the event that triggered the run (for a workflow_dispatch
+# fired from the default branch, that is NOT the tag's commit), so it would
+# silently check the wrong commit's ancestry on exactly the re-run path this
+# input exists for.
+#
+# extra-version-files patterns are grep -E (extended regex), not a literal
+# string match — unescaped parens are a grouping metacharacter, not literal
+# characters. "^podup (VERSION)" silently fails to match debian/changelog's
+# real "podup (1.10.1) unstable; ..." line (grep -qE returns no-match, which
+# is fail-closed, but confusing); the correct pattern escapes them:
+# "^podup \(VERSION\)". Callers must escape their own metacharacters.
+
+on:
+  workflow_call:
+    inputs:
+      manifest-file:
+        description: Path to the manifest file whose version is authoritative (e.g. Cargo.toml, package.json); ignored when manifest-kind is go
+        type: string
+        required: true
+      manifest-kind:
+        description: Manifest format determining how the version is extracted — cargo (first `version = "X"` in the Cargo.toml [package] section), node (package.json .version via jq), or go (modules are versioned by the tag itself; manifest comparison is skipped, other gates still run)
+        type: string
+        required: true
+      extra-version-files:
+        description: >-
+          Newline-separated path:grep-pattern pairs, each checked against the
+          resolved version with grep -E — e.g.
+          "debian/changelog:^podup \(VERSION\)" or
+          "Cargo.lock:version = \"VERSION\"". Escape any literal regex
+          metacharacter in the pattern (parens, dots, etc. — grep -E, not a
+          literal-string match); the literal token VERSION is substituted with
+          the resolved version before matching. Blank lines are skipped; every
+          non-blank entry must match its file or the job fails naming that
+          file. Default checks nothing extra.
+        type: string
+        default: ""
+      tag:
+        description: The tag being verified, e.g. the github.ref_name context value on a tag push, or the caller's own workflow_dispatch tag input for a re-run
+        type: string
+        required: true
+      audit-command:
+        description: Dependency-audit command to run after the version gates (e.g. "cargo audit --locked"); skipped when empty
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Tag must match the manifest version
+        env:
+          MANIFEST_FILE: ${{ inputs.manifest-file }}
+          MANIFEST_KIND: ${{ inputs.manifest-kind }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${TAG#v}"
+          if [ "$VERSION" = "$TAG" ]; then
+            echo "::error::Tag '${TAG}' does not start with 'v'; expected e.g. v1.2.3."
+            exit 1
+          fi
+          echo "RESOLVED_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+          if [ "$MANIFEST_KIND" = "go" ]; then
+            echo "::notice::manifest-kind is 'go'; go modules are versioned by the tag itself, skipping manifest-version comparison."
+            exit 0
+          fi
+
+          case "$MANIFEST_KIND" in
+            cargo)
+              # Scope to the [package] table only: a workspace Cargo.toml can
+              # have other `version = "..."` lines ([workspace.package],
+              # dependency tables) that are not the crate's own version.
+              MANIFEST_VERSION="$(sed -n '/^\[package\]/,/^\[/p' "$MANIFEST_FILE" | grep -m1 '^version = ' | cut -d'"' -f2)"
+              ;;
+            node)
+              MANIFEST_VERSION="$(jq -r '.version' "$MANIFEST_FILE")"
+              ;;
+            *)
+              echo "::error::Unknown manifest-kind '${MANIFEST_KIND}'; expected cargo, node, or go."
+              exit 1
+              ;;
+          esac
+
+          if [ -z "$MANIFEST_VERSION" ] || [ "$MANIFEST_VERSION" = "null" ]; then
+            echo "::error file=${MANIFEST_FILE}::Could not extract a version from ${MANIFEST_FILE} (manifest-kind ${MANIFEST_KIND})."
+            exit 1
+          fi
+
+          if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "::error file=${MANIFEST_FILE}::Tag ${TAG} does not match ${MANIFEST_FILE} version ${MANIFEST_VERSION}."
+            exit 1
+          fi
+          echo "OK: tag ${TAG} matches ${MANIFEST_FILE} version ${MANIFEST_VERSION}."
+
+      - name: Every extra version file must agree
+        if: inputs.extra-version-files != ''
+        env:
+          EXTRA_VERSION_FILES: ${{ inputs.extra-version-files }}
+          VERSION: ${{ env.RESOLVED_VERSION }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            case "$line" in
+              *:*) ;;
+              *)
+                echo "::error::Malformed extra-version-files entry '${line}' (expected path:grep-pattern)."
+                exit 1
+                ;;
+            esac
+            file="${line%%:*}"
+            pattern_template="${line#*:}"
+            if [ -z "$file" ] || [ -z "$pattern_template" ]; then
+              echo "::error::Malformed extra-version-files entry '${line}' (expected path:grep-pattern)."
+              exit 1
+            fi
+            pattern="${pattern_template//VERSION/$VERSION}"
+            if [ ! -f "$file" ]; then
+              echo "::error file=${file}::extra-version-files: ${file} does not exist."
+              exit 1
+            fi
+            if ! grep -qE "$pattern" "$file"; then
+              echo "::error file=${file}::${file} does not match expected pattern '${pattern}' (version ${VERSION})."
+              exit 1
+            fi
+            echo "OK: ${file} matches '${pattern}'."
+          done <<< "$EXTRA_VERSION_FILES"
+
+      - name: Tagged commit must be reachable from main
+        # workflow_call runs on the tag ref checked out above, not the caller's
+        # own default ref, so origin/main's history is not guaranteed to be
+        # present yet even with fetch-depth: 0 above (that fetches the tag's
+        # own ancestry, not necessarily a remote-tracking ref for main) —
+        # fetch it explicitly, and fail closed if the fetch itself fails
+        # rather than silently skipping the reachability gate.
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! git fetch --no-tags origin main; then
+            echo "::error::Could not fetch origin/main; cannot verify the tagged commit is reachable from main."
+            exit 1
+          fi
+
+          sha="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$sha" origin/main; then
+            echo "::error::Commit ${sha} (tag ${TAG}) is not reachable from origin/main; releases must be cut from main."
+            exit 1
+          fi
+          echo "OK: ${sha} is reachable from origin/main."
+
+      - name: Run dependency audit
+        if: inputs.audit-command != ''
+        env:
+          AUDIT_COMMAND: ${{ inputs.audit-command }}
+        run: bash -c "$AUDIT_COMMAND"
