@@ -98,7 +98,11 @@ jobs:
         run: |
           suffix="$WORKING_DIRECTORY"
           suffix="${suffix#./}"
-          if [ "$suffix" = "." ]; then
+          # "." and "./" both strip down to the same "root" case; so does an
+          # empty input ("") — none of them denote a real subdirectory name,
+          # and left alone they'd produce a trailing-hyphen artifact name
+          # ("sbom-and-notices-") instead of one qualified by directory.
+          if [ "$suffix" = "." ] || [ -z "$suffix" ]; then
             suffix="root"
           fi
           suffix="$(printf '%s' "$suffix" | tr '/:<>|*?\\"' '-' | tr -s '-')"
