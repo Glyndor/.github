@@ -30,7 +30,11 @@ on:
       toolchain:
         description: Rust toolchain to use (cargo-fuzz requires nightly)
         type: string
-        default: "nightly"
+        default: "nightly-2026-07-16"
+      cargo-fuzz-version:
+        description: Exact version of the tool; bumped via .github releases
+        type: string
+        default: "0.13.2"
 
 permissions:
   contents: read
@@ -67,10 +71,15 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ${{ inputs.working-directory }}/fuzz/target
-          key: cargo-fuzz-${{ runner.os }}-${{ hashFiles(format('{0}/fuzz/Cargo.toml', inputs.working-directory)) }}
+          # The tool version is part of the key: fuzz/Cargo.toml's hash alone
+          # doesn't change when the pin is bumped, so a stale cargo-fuzz
+          # binary could otherwise survive the command -v short-circuit below.
+          key: cargo-fuzz-${{ runner.os }}-${{ inputs.cargo-fuzz-version }}-${{ hashFiles(format('{0}/fuzz/Cargo.toml', inputs.working-directory)) }}
 
       - name: Install cargo-fuzz
-        run: command -v cargo-fuzz >/dev/null || cargo install cargo-fuzz --locked
+        env:
+          CARGO_FUZZ_VERSION: ${{ inputs.cargo-fuzz-version }}
+        run: command -v cargo-fuzz >/dev/null || cargo install cargo-fuzz --locked --version "$CARGO_FUZZ_VERSION"
 
       - name: Fuzz ${{ matrix.target }}
         env:

@@ -26,6 +26,10 @@ on:
         description: Regex of file paths to exclude from coverage (e.g. code covered only by a separate DB integration job)
         type: string
         default: ""
+      llvm-cov-version:
+        description: Exact version of the tool; bumped via .github releases
+        type: string
+        default: "0.8.7"
       extra-test-os:
         description: JSON array of extra runner images to also run tests on (e.g. '["macos-latest"]')
         type: string
@@ -46,6 +50,10 @@ on:
         description: Run cargo-semver-checks to flag public API breaks against the last published release
         type: boolean
         default: false
+      semver-checks-version:
+        description: Exact version of the tool; bumped via .github releases
+        type: string
+        default: "0.48.0"
       doc-warnings:
         description: Build the docs with -D warnings so broken doc links fail the build
         type: boolean
@@ -185,11 +193,16 @@ jobs:
             ~/.cargo/git/db
             ~/.cargo/bin
             ${{ inputs.working-directory }}/target
-          key: rust-cov-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: rust-cov-${{ runner.os }}-
+          # The tool version is part of the key: a cache built under an older
+          # pin must not survive a version bump via the `command -v ... ||`
+          # short-circuit below, or the pin would be silently ignored.
+          key: rust-cov-${{ runner.os }}-${{ inputs.llvm-cov-version }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: rust-cov-${{ runner.os }}-${{ inputs.llvm-cov-version }}-
 
       - name: Install cargo-llvm-cov
-        run: command -v cargo-llvm-cov >/dev/null || cargo install cargo-llvm-cov --locked
+        env:
+          LLVM_COV_VERSION: ${{ inputs.llvm-cov-version }}
+        run: command -v cargo-llvm-cov >/dev/null || cargo install cargo-llvm-cov --locked --version "$LLVM_COV_VERSION"
 
       - name: Start Podman socket
         if: inputs.podman
@@ -204,7 +217,7 @@ jobs:
           PODMAN_SOCKET: ${{ steps.podman-socket.outputs.path }}
           COVERAGE_IGNORE_REGEX: ${{ inputs.coverage-ignore-regex }}
         run: |
-          cargo llvm-cov --workspace --all-features --summary-only --json --output-path coverage.json \
+          cargo llvm-cov --locked --workspace --all-features --summary-only --json --output-path coverage.json \
             ${COVERAGE_IGNORE_REGEX:+--ignore-filename-regex "$COVERAGE_IGNORE_REGEX"}
           PCT=$(python3 -c "import json; print(json.load(open('coverage.json'))['data'][0]['totals']['lines']['percent'])")
           echo "### Coverage: ${PCT}% (threshold: ${{ inputs.coverage-threshold }}%)" >> "$GITHUB_STEP_SUMMARY"
@@ -282,7 +295,9 @@ jobs:
           rustup default "$TOOLCHAIN"
 
       - name: Install cargo-semver-checks
-        run: command -v cargo-semver-checks >/dev/null || cargo install cargo-semver-checks --locked
+        env:
+          SEMVER_CHECKS_VERSION: ${{ inputs.semver-checks-version }}
+        run: command -v cargo-semver-checks >/dev/null || cargo install cargo-semver-checks --locked --version "$SEMVER_CHECKS_VERSION"
 
       - name: Check for public API breaks
         run: cargo semver-checks check-release
