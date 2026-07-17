@@ -23,9 +23,9 @@ on:
         type: string
         default: "about.hbs"
       cyclonedx-version:
-        description: cargo-cyclonedx version requirement
+        description: Exact version of cargo-cyclonedx to install; bumped via .github releases
         type: string
-        default: "^0.5"
+        default: "0.5.9"
       cargo-about-version:
         description: Exact version of cargo-about to install; bumped via .github releases
         type: string
@@ -74,7 +74,7 @@ jobs:
         # cargo-about's "=" keeps it an exact pin: a bare version string in
         # cargo's --version grammar defaults to caret ("^") matching.
         run: |
-          command -v cargo-cyclonedx >/dev/null || cargo install --locked cargo-cyclonedx --version "$CYCLONEDX_VERSION"
+          command -v cargo-cyclonedx >/dev/null || cargo install --locked cargo-cyclonedx --version "=$CYCLONEDX_VERSION"
           command -v cargo-about >/dev/null || cargo install --locked --features cli cargo-about --version "=$ABOUT_VERSION"
 
       - name: Generate CycloneDX SBOM
