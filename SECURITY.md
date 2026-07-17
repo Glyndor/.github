@@ -12,9 +12,9 @@ repository: **Security tab → Report a vulnerability**.
 
 If a repository has detached from the organization's code-security baseline
 and no longer shows that button, open a draft security advisory on this
-repository, **Glyndor/.github**, instead — its Security tab is always
-available — and name the affected repository in the report. As a last
-resort, reach the owner through their GitHub profile: **@Jaro-c**.
+repository, **Glyndor/.github**, instead, and name the affected repository
+in the report. If that repository has also detached, reach the owner
+through their GitHub profile: **@Jaro-c**.
 
 Include:
 
