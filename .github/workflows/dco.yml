@@ -68,17 +68,25 @@ jobs:
         #     `git merge-tree --write-tree` only compares two parents, so a
         #     three-way-or-more merge can't be verified this way and is not
         #     assumed safe.
-        #   - A merge whose parents genuinely conflict makes `git merge-tree
-        #     --write-tree` exit non-zero. That is expected for a legitimate
-        #     hand-resolved conflict merge, not evidence of tampering, so
-        #     such a merge is only noted (::notice::) as unverified rather
-        #     than failed.
+        #   - A merge whose parents conflict, or whose tree otherwise can't
+        #     be recomputed, fails closed rather than being waved through:
+        #     `git merge-tree --write-tree` exiting non-zero means we cannot
+        #     recompute what the merge should have produced, and a
+        #     hand-resolved conflict is unverifiable by construction — there
+        #     is no way to distinguish a faithful resolution from one that
+        #     also smuggled in an unrelated change. This org's flow is
+        #     squash-only, so merge commits inside a PR range are rare and
+        #     always avoidable (rebase onto the base branch instead of
+        #     merging, or re-merge without conflicts), which is what makes
+        #     failing closed here acceptable friction rather than a
+        #     false-positive machine.
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           bad=0
+          stderr_file="$(mktemp)"
           for m in $(git rev-list --merges "${BASE_SHA}..${HEAD_SHA}"); do
             read -r -a parents <<< "$(git show -s --format='%P' "$m")"
             if [ "${#parents[@]}" -ne 2 ]; then
@@ -87,8 +95,11 @@ jobs:
               continue
             fi
             actual_tree="$(git rev-parse "${m}^{tree}")"
-            if ! clean_tree="$(git merge-tree --write-tree "${parents[0]}" "${parents[1]}" 2>/dev/null)"; then
-              echo "::notice::merge commit $m has conflicting parents — its tree could not be auto-verified against a clean merge, so it is treated as a legitimate manual conflict resolution rather than evil"
+            if ! clean_tree="$(git merge-tree --write-tree "${parents[0]}" "${parents[1]}" 2>"$stderr_file")"; then
+              echo "::error::merge commit $m cannot be automatically verified (conflicted or merge-tree error); this check fails closed because a hand-resolved merge can carry content that exists in no parent. Rebase the branch onto its base (producing no merge commit) or re-merge without conflicts, then push again."
+              echo "git merge-tree stderr for $m:"
+              cat "$stderr_file"
+              bad=1
               continue
             fi
             if [ "$clean_tree" != "$actual_tree" ]; then
@@ -96,8 +107,9 @@ jobs:
               bad=1
             fi
           done
+          rm -f "$stderr_file"
           if [ "$bad" -ne 0 ]; then
-            echo "One or more merge commits smuggle unreviewed changes, or use an unsupported merge shape. See the errors above."
+            echo "One or more merge commits smuggle unreviewed changes, use an unsupported merge shape, or could not be automatically verified. See the errors above."
             exit 1
           fi
           echo "No evil merges found."
