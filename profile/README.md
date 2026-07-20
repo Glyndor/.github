@@ -16,7 +16,7 @@ Website: glyndor.net
 | [podup](https://github.com/Glyndor/podup) | Rust | docker-compose translator and runner for rootless Podman |
 | [epistle](https://github.com/Glyndor/epistle) | Rust | Self-hosted, headless mail server (SMTP/IMAP/JMAP) |
 | [epistle-panel](https://github.com/Glyndor/epistle-panel) | TypeScript | Web admin panel for epistle |
-| [authcore](https://github.com/Glyndor/authcore) | Go | Auth primitives library — passwords, tokens, OAuth2/OIDC |
+| [authcore](https://github.com/Glyndor/authcore) | Go | Auth primitives library: passwords, tokens, OAuth2/OIDC |
 | [unitpm](https://github.com/Glyndor/unitpm) | Go | systemd-native process manager |
 | [klyradb](https://github.com/Glyndor/klyradb) | Rust | Local database instance manager (desktop app) |
 | [specio](https://github.com/Glyndor/specio) | TypeScript | Browser extension: on-device website tech-stack detection |
@@ -24,8 +24,8 @@ Website: glyndor.net
 
 ## Contributing
 
-Issues are open to everyone. Pull requests are invitation-only — this code
-touches kernel-level surfaces (SSH, firewall, ports). Report vulnerabilities
-privately via [`SECURITY.md`](https://github.com/Glyndor/.github/blob/main/SECURITY.md);
+Issues are open to everyone. Pull requests are invitation-only, because this
+code touches kernel-level surfaces (SSH, firewall, ports). Report
+vulnerabilities privately via [`SECURITY.md`](https://github.com/Glyndor/.github/blob/main/SECURITY.md);
 contribution flow and conventions are in
 [`CONTRIBUTING.md`](https://github.com/Glyndor/.github/blob/main/CONTRIBUTING.md).
