@@ -10,16 +10,16 @@ FUNDING), issue/PR templates, the org profile, and reusable CI workflows.
 # .github/workflows/ci.yml in any Glyndor repository
 jobs:
   rust:
-    uses: Glyndor/.github/.github/workflows/rust-ci.yml@<sha> # v1.7.0
+    uses: Glyndor/.github/.github/workflows/rust-ci.yml@<sha> # v1.10.1
     with:
       coverage-threshold: 70
 ```
 
-- **CI:** `rust-ci`, `bun-ci`, `go-ci`, `python-ci`, `shell-ci`
+- **CI:** `rust-ci`, `bun-ci`, `go-ci`, `python-ci`, `shell-ci`, `powershell-ci`
 - **Supply chain:** `rust-audit`, `rust-supply-chain`, `rust-debian`, `go-audit`
 - **Fuzz:** `rust-fuzz`, `go-fuzz`
-- **Release contracts:** `installer-contract`
-- **Policy gates:** `dco`, `main-guard`, `line-limit`
+- **Release contracts:** `installer-contract`, `release-verify`
+- **Policy gates:** `dco`, `main-guard`, `line-limit`, `workflow-lint`
 
 Pin to a release **commit SHA** with the version in a comment. Dependabot bumps
 it when a newer release ships. Allowed action sources: `actions/*`, `Glyndor/*`,
