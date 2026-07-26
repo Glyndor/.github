@@ -1,15 +1,33 @@
 version: 2
+
 updates:
+  # Keep the SHA-pinned actions in the reusable workflows current. Every
+  # consumer inherits whatever is pinned here the moment it adopts a new tag,
+  # so a stale action in this repository is a stale action org-wide.
+  #
+  # A valid file is not proof this runs. Version updates are registered from
+  # the config on the default branch, and that registration can be lost: this
+  # repository went silent after 24 July 2026 with the file below unchanged and
+  # perfectly valid. Insights -> Dependabot is the only place that shows it;
+  # the settings page cannot tell the two states apart. Re-registering needs a
+  # commit that CHANGES this file on the default branch, so if it happens
+  # again, editing these comments is a legitimate fix.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+    # One pull request a day instead of one per action. Without this, an
+    # upstream release day means several near-identical pull requests and a
+    # full CI run each.
     groups:
       actions:
         patterns: ["*"]
     labels:
       - "type:deps"
       - "type:ci"
+    # Dependabot infers a prefix from the commit history when this is absent,
+    # and it does not always land on a type the label taxonomy uses. Set it so
+    # the generated title is predictable.
     commit-message:
       prefix: chore
