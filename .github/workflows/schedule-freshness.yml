@@ -17,6 +17,10 @@ name: Schedule freshness (reusable)
 # as apt's `ValidFor: 14d`, which expires the archive rather than letting it
 # serve a frozen snapshot when the pipeline stalls.
 #
+# The caller must grant `actions: read` alongside `contents: read`: a called
+# workflow cannot elevate beyond the permissions of the workflow that calls it,
+# and reading run history needs that scope. Without it the run does not start.
+#
 # Add the check only once the schedule has fired successfully at least once —
 # with no successful run on record there is nothing to measure and the job
 # reports that as a failure, which for an established workflow is exactly right.
