@@ -21,6 +21,11 @@ jobs:
 - **Release contracts:** `installer-contract`, `release-verify`
 - **Policy gates:** `dco`, `main-guard`, `line-limit`, `workflow-lint`
 
+**[docs/reusables/](docs/reusables/) has a page per workflow** — inputs, defaults,
+and the exact status-check names each one emits. Read the check names before
+adding one to a ruleset: a required check is matched by name, so requiring one
+that nothing emits blocks every pull request in that repository.
+
 Pin to a release **commit SHA** with the version in a comment. Dependabot bumps
 it when a newer release ships. Allowed action sources: `actions/*`, `Glyndor/*`,
 and `oven-sh/setup-bun` (needed by `bun-ci`).
