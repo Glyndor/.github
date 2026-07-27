@@ -57,3 +57,23 @@ jobs:
           PACKAGE: ${{ matrix.package }}
           FUZZTIME: ${{ inputs.fuzztime }}
         run: go test -run='^$' -fuzz="^${FUNC}\$" -fuzztime="$FUZZTIME" "$PACKAGE"
+
+      # A crash is only useful if the input that caused it survives. `go test
+      # -fuzz` writes it under <package>/testdata/fuzz/<Target>/ in the
+      # workspace, and the runner is destroyed moments later — so without this
+      # the find degrades into log text that somebody has to retype. With the
+      # file in hand, dropping it into the repository's testdata turns the crash
+      # into a permanent regression case.
+      #
+      # The name carries the job index because a func name is not unique across
+      # packages (two modules can both declare FuzzValidateAndNormalize) and
+      # artifact names must not collide.
+      - name: Upload the failing input
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-failure-${{ matrix.func }}-${{ strategy.job-index }}
+          path: ${{ inputs.working-directory }}/**/testdata/fuzz/**
+          # A build or vet failure also lands here and leaves no corpus entry;
+          # that is not worth a second, confusing failure on top of the first.
+          if-no-files-found: ignore
