@@ -11,7 +11,7 @@ which blocks every pull request until someone works out why.
 | [`bun-ci`](bun-ci.md) | 1 | 0 | 3 |
 | [`dco`](dco.md) | 1 | 0 | 0 |
 | [`go-audit`](go-audit.md) | 2 | 0 | 4 |
-| [`go-ci`](go-ci.md) | 1 | 0 | 2 |
+| [`go-ci`](go-ci.md) | 1 | 0 | 3 |
 | [`go-fuzz`](go-fuzz.md) | 1 | 0 | 3 |
 | [`installer-contract`](installer-contract.md) | 1 | 0 | 3 |
 | [`line-limit`](line-limit.md) | 1 | 0 | 4 |
