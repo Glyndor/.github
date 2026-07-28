@@ -8,7 +8,16 @@ on:
         type: string
         default: "."
       coverage-threshold:
-        description: Minimum coverage percentage (0 disables the gate)
+        description: Minimum coverage percentage across the module (0 disables the gate)
+        type: number
+        default: 0
+      per-package-coverage-threshold:
+        description: >-
+          Minimum coverage percentage for every individual package (0 disables
+          the gate). An aggregate threshold on a module whose packages differ in
+          risk rewards covering the easy ones — a fully covered helper package
+          pays for a thin one that parses untrusted input. This asserts the
+          floor holds everywhere rather than on average.
         type: number
         default: 0
 
@@ -58,3 +67,39 @@ jobs:
           PCT=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
           echo "### Coverage: ${PCT}% (threshold: ${THRESHOLD}%)" >> "$GITHUB_STEP_SUMMARY"
           awk -v p="$PCT" -v t="$THRESHOLD" 'BEGIN { exit (p >= t) ? 0 : 1 }'
+
+      - name: Per-package coverage gate
+        if: inputs.per-package-coverage-threshold > 0
+        env:
+          THRESHOLD: ${{ inputs.per-package-coverage-threshold }}
+          # awk formats decimals per locale; C keeps the separator a dot so the
+          # comparison below cannot quietly truncate at the boundary.
+          LC_ALL: C
+        run: |
+          set -euo pipefail
+          # Profile lines are "<import/path>/<file>.go:<range> <stmts> <count>",
+          # so summing per directory gives the per-package figure the aggregate
+          # hides. Written once to a file: piping awk into tee would swallow its
+          # exit status.
+          awk '
+            /^mode:/ { next }
+            { loc = $1; sub(/\/[^\/]*$/, "", loc); total[loc] += $2; if ($3 > 0) covered[loc] += $2 }
+            END { for (p in total) printf "%.1f %s\n", (total[p] ? 100 * covered[p] / total[p] : 100), p }
+          ' coverage.out | sort -n > per-package-coverage.txt
+
+          {
+            echo "### Per-package coverage (floor: ${THRESHOLD}%)"
+            echo
+            echo '```'
+            cat per-package-coverage.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          under=$(awk -v t="$THRESHOLD" '$1 < t' per-package-coverage.txt)
+          if [ -n "$under" ]; then
+            echo "$under" | while read -r pct pkg; do
+              echo "::error::${pkg} is at ${pct}%, under the ${THRESHOLD}% floor"
+            done
+            exit 1
+          fi
+          echo "Every package clears ${THRESHOLD}%."

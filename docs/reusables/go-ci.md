@@ -31,7 +31,8 @@ a required check whose name nothing emits blocks every pull request.
 | Input | Type | Default | Required | Description |
 |---|---|---|---|---|
 | `working-directory` | string | `.` | no | Directory containing the Go module |
-| `coverage-threshold` | number | `0` | no | Minimum coverage percentage (0 disables the gate) |
+| `coverage-threshold` | number | `0` | no | Minimum coverage percentage across the module (0 disables the gate) |
+| `per-package-coverage-threshold` | number | `0` | no | Minimum coverage percentage for every individual package (0 disables the gate). An aggregate threshold on a module whose packages differ in risk rewards covering the easy ones — a fully covered helper package pays for a thin one that parses untrusted input. This asserts the floor holds everywhere rather than on average. |
 
 ---
 
