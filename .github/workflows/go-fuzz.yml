@@ -1,9 +1,16 @@
 name: Go fuzz (reusable)
 
 # Scheduled fuzzing for Go modules: runs `go test -fuzz` against each declared
-# target for a short, bounded time to surface parser panics and edge cases on a
-# fixed tree. Callers wire the schedule (e.g. weekly cron) and pass the target
-# list in their own workflow. This is a smoke run, not a corpus-building soak.
+# target for a short, bounded time to surface parser panics and edge cases.
+# Callers wire the schedule (e.g. weekly cron) and pass the target list in their
+# own workflow.
+#
+# The corpus persists between runs, which is what makes short runs add up.
+# `setup-go` restores GOCACHE — where Go keeps the fuzzing corpus — but on a
+# cache hit it does not save it again, so every input a run discovered used to
+# die with the runner and the next week re-explored the same ground from the
+# seeds. Its key also derives from go.sum, which a dependency bump changes.
+# The corpus therefore gets a key of its own below.
 
 on:
   workflow_call:
@@ -50,6 +57,24 @@ jobs:
         with:
           go-version-file: ${{ inputs.working-directory }}/go.mod
           cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      # The corpus lives inside GOCACHE, so ask the toolchain where that is
+      # rather than assuming the default path.
+      - name: Locate the fuzz corpus
+        id: corpus
+        run: echo "path=$(go env GOCACHE)/fuzz" >> "$GITHUB_OUTPUT"
+
+      # The key carries the run id, so it never hits and the cache is always
+      # saved; restore-keys then pulls the most recent corpus for this target.
+      # That is the rolling-cache shape, and it is what lets one target's
+      # discoveries compound across weeks instead of resetting every run.
+      - name: Restore and extend the corpus
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.corpus.outputs.path }}
+          key: go-fuzz-corpus-${{ matrix.package }}-${{ matrix.func }}-${{ github.run_id }}
+          restore-keys: |
+            go-fuzz-corpus-${{ matrix.package }}-${{ matrix.func }}-
 
       - name: Fuzz ${{ matrix.func }} (${{ matrix.package }})
         env:

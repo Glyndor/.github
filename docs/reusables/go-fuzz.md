@@ -1,6 +1,6 @@
 # go-fuzz
 
-Scheduled fuzzing for Go modules: runs `go test -fuzz` against each declared target for a short, bounded time to surface parser panics and edge cases on a fixed tree. Callers wire the schedule (e.g. weekly cron) and pass the target list in their own workflow. This is a smoke run, not a corpus-building soak.
+Scheduled fuzzing for Go modules: runs `go test -fuzz` against each declared target for a short, bounded time to surface parser panics and edge cases. Callers wire the schedule (e.g. weekly cron) and pass the target list in their own workflow. The corpus persists between runs, which is what makes short runs add up. `setup-go` restores GOCACHE — where Go keeps the fuzzing corpus — but on a cache hit it does not save it again, so every input a run discovered used to die with the runner and the next week re-explored the same ground from the seeds. Its key also derives from go.sum, which a dependency bump changes. The corpus therefore gets a key of its own below.
 
 ## Calling it
 
