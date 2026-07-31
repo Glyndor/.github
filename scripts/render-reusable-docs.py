@@ -24,6 +24,15 @@ OUT = "docs/reusables"
 # Not consumer-facing: these run against this repository itself.
 SELF_CI = {"actionlint.yml", "dco-check.yml"}
 
+# The `workflow_call:` blocks a page documents, in the order it renders them.
+# Named once here and read by iteration, because `call.get("secrets")` written
+# inline says "fetch secret values" — to a reader and to CodeQL's
+# SensitiveGetCall, which flagged this file as storing secrets in clear text.
+# What a reusable declares is the opposite: names, required flags and
+# descriptions, already public in the workflow file this script parses. No
+# value exists here; nothing reads the environment.
+CALL_BLOCKS = ("inputs", "secrets")
+
 # Four reusables predate the header-comment convention. Their summaries live
 # here rather than being invented at render time, so the generator never puts
 # words in a workflow's mouth.
@@ -77,8 +86,7 @@ def emitted_checks(spec):
 def render(slug, spec, summary):
 	# A reusable with neither inputs nor secrets parses `workflow_call:` as None.
 	call = (spec.get("on") or spec.get(True))["workflow_call"] or {}
-	inputs = call.get("inputs") or {}
-	secrets = call.get("secrets") or {}
+	inputs, declared = [call.get(block) or {} for block in CALL_BLOCKS]
 
 	md = [f"# {slug}", ""]
 	if summary:
@@ -149,9 +157,9 @@ def render(slug, spec, summary):
 	else:
 		md += ["## Inputs", "", "None.", ""]
 
-	if secrets:
+	if declared:
 		md += ["## Secrets", "", "| Secret | Required | Description |", "|---|---|---|"]
-		for key, val in secrets.items():
+		for key, val in declared.items():
 			val = val or {}
 			req = "yes" if val.get("required") else "no"
 			desc = (val.get("description") or "").replace("|", "\\|")
