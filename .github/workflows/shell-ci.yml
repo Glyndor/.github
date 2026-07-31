@@ -19,6 +19,10 @@ on:
         description: Exact shellcheck release tag to install from koalaman/shellcheck; bumped via .github releases
         type: string
         default: "v0.11.0"
+      shellcheck-sha256:
+        description: sha256 of that release's linux.x86_64 tarball; travels with shellcheck-version, so overriding one without the other fails the install
+        type: string
+        default: "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
       test-command:
         description: Command running the repository's shell test suite (skipped when empty)
         type: string
@@ -70,16 +74,22 @@ jobs:
       - name: Install shellcheck
         env:
           SHELLCHECK_VERSION: ${{ inputs.shellcheck-version }}
+          SHELLCHECK_SHA256: ${{ inputs.shellcheck-sha256 }}
         run: |
           set -euo pipefail
-          # Pinned by version, not whatever shellcheck the runner image
-          # happens to ship — the version pin is the control here; the
-          # tarball comes straight from koalaman/shellcheck's own GitHub
-          # release over HTTPS, so there is no separate checksum to embed.
+          # Pinned by version and by content. Every other tool here arrives
+          # through a registry that verifies what it hands over (Go's sumdb,
+          # crates.io, PyPI); this is a plain download, so the checksum is the
+          # only thing standing between us and whatever the transport returns.
+          # It has to land in a file first: piping curl into tar extracts the
+          # bytes before anything can check them.
           dir="$RUNNER_TEMP/shellcheck-bin"
+          tarball="$RUNNER_TEMP/shellcheck.tar.xz"
           mkdir -p "$dir"
-          curl -sSfL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
-            | tar -xJ -C "$dir" --strip-components=1 "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          curl -sSfL -o "$tarball" \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          printf '%s  %s\n' "$SHELLCHECK_SHA256" "$tarball" | sha256sum -c -
+          tar -xJ -f "$tarball" -C "$dir" --strip-components=1 "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
           chmod +x "$dir/shellcheck"
           echo "$dir" >> "$GITHUB_PATH"
 
