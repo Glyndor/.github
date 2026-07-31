@@ -25,8 +25,8 @@ which blocks every pull request until someone works out why.
 | [`rust-fuzz`](rust-fuzz.md) | 1 | 0 | 7 |
 | [`rust-supply-chain`](rust-supply-chain.md) | 1 | 0 | 5 |
 | [`schedule-freshness`](schedule-freshness.md) | 1 | 0 | 2 |
-| [`shell-ci`](shell-ci.md) | 2 | 1 | 5 |
-| [`workflow-lint`](workflow-lint.md) | 1 | 0 | 1 |
+| [`shell-ci`](shell-ci.md) | 2 | 1 | 6 |
+| [`workflow-lint`](workflow-lint.md) | 1 | 0 | 2 |
 
 *Conditional* checks only run when an input turns them on, so they emit no
 check name at all when it is left at its default.

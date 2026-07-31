@@ -25,6 +25,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ACTIONLINT_VERSION: v1.7.12
+      # Keep in step with the shellcheck-version/shellcheck-sha256 defaults in
+      # shell-ci.yml and workflow-lint.yml: this repository should not lint
+      # itself to a weaker standard than the one it ships to consumers.
+      SHELLCHECK_VERSION: v0.11.0
+      SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -44,5 +49,23 @@ jobs:
         if: steps.actionlint-cache.outputs.cache-hit != 'true'
         run: go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
 
+      - name: Install shellcheck
+        run: |
+          set -euo pipefail
+          # actionlint's embedded shellcheck pass otherwise falls back to the
+          # runner image's floating shellcheck, which is exactly what the
+          # workflow-lint reusable installs a pinned, verified one to avoid.
+          dir="$RUNNER_TEMP/shellcheck-bin"
+          tarball="$RUNNER_TEMP/shellcheck.tar.xz"
+          mkdir -p "$dir"
+          curl -sSfL -o "$tarball" \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          printf '%s  %s\n' "$SHELLCHECK_SHA256" "$tarball" | sha256sum -c -
+          tar -xJ -f "$tarball" -C "$dir" --strip-components=1 "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          chmod +x "$dir/shellcheck"
+          echo "SHELLCHECK_BIN=$dir/shellcheck" >> "$GITHUB_ENV"
+
       - name: Run actionlint
-        run: actionlint -color
+        env:
+          SHELLCHECK_BIN: ${{ env.SHELLCHECK_BIN }}
+        run: actionlint -color "-shellcheck=${SHELLCHECK_BIN}"
