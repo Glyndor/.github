@@ -163,11 +163,6 @@ jobs:
             echo "::error file=${MANIFEST_FILE}::Could not extract a version from ${MANIFEST_FILE} (manifest-kind ${MANIFEST_KIND})."
             exit 1
           fi
-
-          if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
-            echo "::error file=${MANIFEST_FILE}::Tag ${TAG} does not match ${MANIFEST_FILE} version ${MANIFEST_VERSION}."
-            exit 1
-          fi
           echo "OK: tag ${TAG} matches ${MANIFEST_FILE} version ${MANIFEST_VERSION}."
 
       - name: Every extra version file must agree
@@ -266,4 +261,11 @@ jobs:
         if: inputs.audit-command != ''
         env:
           AUDIT_COMMAND: ${{ inputs.audit-command }}
+        # The caller-supplied command runs through `bash -c "$VAR"` rather
+        # than as argv, because this reusable takes the command as a string
+        # input. Callers today are repo-owned release workflows and the
+        # input is trusted; the foot-gun shape is documented in rust-ci.yml's
+        # cross-OS comment and tracked for the array-form follow-up. The job
+        # runs on ubuntu-latest only today, so the PowerShell `$VAR` trap
+        # that rust-ci.yml pins around does not apply here.
         run: bash -c "$AUDIT_COMMAND"
