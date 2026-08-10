@@ -1,6 +1,6 @@
 # installer-contract
 
-Assert install.sh and the release workflow agree on release asset names. Releases are immutable: once a tag ships, its asset names can never change. install.sh downloads `<name>-${OS}-${ARCH}` for the platform it runs on, and the release workflow publishes a fixed list of assets. If the two drift, the installer breaks for users. This catches the drift on the PR, before any tag.
+Assert install.sh and the release workflow agree on release asset names. Releases are immutable: once a tag ships, its asset names can never change. install.sh downloads `<name>-${OS}-${ARCH}` for the platform it runs on, and the release workflow publishes a fixed list of assets. If the two drift, the installer breaks for users. This catches the drift on the PR, before any tag. Also asserts the release workflow produces a `SHA256SUMS` manifest — the same manifest the install scripts verify downloaded binaries against. A release without one cannot be verified at install time, and a release workflow that stops producing one is a silent breaking change.
 
 ## Calling it
 
