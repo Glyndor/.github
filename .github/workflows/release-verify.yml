@@ -94,6 +94,10 @@ on:
         description: Dependency-audit command to run after the version gates (e.g. "cargo audit --locked"); skipped when empty
         type: string
         default: ""
+      release-pubkey-b64:
+        description: Base64 (no padding) Ed25519 public key that signs per-asset `.sig` files. Default is the current org release key; override on rotation.
+        type: string
+        default: "HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
     outputs:
       verified-sha:
         description: git rev-parse HEAD of the checked-out tag, captured right after checkout. Tags are mutable and can move after this job resolves them, so a job that builds/publishes after verification should check out this SHA (or assert it equals its own HEAD) instead of re-resolving the tag.
@@ -256,6 +260,90 @@ jobs:
             exit 1
           fi
           echo "OK: ${sha} is reachable from origin/main."
+
+      - name: Per-asset signature verification
+        # Closes the per-binary substitution gap where the manifest could
+        # be re-signed to match a swapped binary. Iterates every per-asset
+        # .sig (per-binary, per-deb, per-SBOM, per-installer), not just
+        # SHA256SUMS.sig — a manifest-only check would pass a release
+        # where the manifest was re-signed to legitimize a swapped binary,
+        # because the manifest's hash of the binary still matches. Per-asset
+        # .sig covers each binary independently, so a swap fails the check
+        # even if the manifest is intact.
+        #
+        # Skipped for `manifest-kind: go` because Go modules are versioned
+        # by the tag itself and the per-binary .sig convention is not used
+        # by the Go release workflows in the org.
+        env:
+          TAG: ${{ inputs.tag }}
+          RELEASE_PUBKEY_B64: ${{ inputs.release-pubkey-b64 }}
+        if: inputs.manifest-kind != 'go'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/assets"
+          cd "$RUNNER_TEMP/assets"
+
+          # List assets. The API call is the documented release-listing path;
+          # we do not use `gh release download` because we want to iterate
+          # asset names, not bulk-download. `gh` is the org's preinstalled
+          # binary, not a third-party action, and this is read-only.
+          assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          if [ -z "$assets" ]; then
+            echo "::error::No assets found for tag ${TAG}; cannot verify per-asset signatures."
+            exit 1
+          fi
+
+          # Find every .sig and its binary. A .sig is named for one binary;
+          # we download both and verify the sig against the binary.
+          sigs="$(printf '%s\n' "$assets" | grep '\.sig$' || true)"
+          if [ -z "$sigs" ]; then
+            echo "::error::No .sig files in the release assets; per-asset signature verification requires one per binary."
+            exit 1
+          fi
+
+          bad=0
+          verified=0
+          for sig in $sigs; do
+            binary="${sig%.sig}"
+            if ! printf '%s\n' "$assets" | grep -qx "$binary"; then
+              echo "::error file=$sig::Signature $sig has no matching binary in the release."
+              bad=1
+              continue
+            fi
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --pattern "$binary" --pattern "$sig" --dir . --clobber >/dev/null
+            if [ ! -s "$binary" ] || [ ! -s "$sig" ]; then
+              echo "::error::Failed to download $binary / $sig for verification."
+              bad=1
+              continue
+            fi
+            if ! python3 - "$sig" "$binary" "$RELEASE_PUBKEY_B64" <<'PY'
+          import base64, sys
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+          sig_path, data_path, pubkey_b64 = sys.argv[1], sys.argv[2], sys.argv[3]
+          try:
+              pub = Ed25519PublicKey.from_public_bytes(base64.b64decode(pubkey_b64 + "=="))
+          except Exception as e:
+              print(f"FAIL {sig_path}: invalid release pubkey ({e})")
+              sys.exit(1)
+          try:
+              pub.verify(open(sig_path, "rb").read(), open(data_path, "rb").read())
+              print(f"OK {sig_path}")
+          except Exception:
+              print(f"FAIL {sig_path}: signature does not verify {data_path}")
+              sys.exit(1)
+          PY
+            then
+              verified=$((verified + 1))
+            else
+              bad=1
+            fi
+          done
+          echo "Verified $verified signature(s)."
+          if [ "$bad" -ne 0 ]; then
+            echo "::error::One or more per-asset signatures failed verification; the release cannot be trusted."
+            exit 1
+          fi
 
       - name: Run dependency audit
         if: inputs.audit-command != ''

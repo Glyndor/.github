@@ -18,7 +18,7 @@ which blocks every pull request until someone works out why.
 | [`main-guard`](main-guard.md) | 1 | 0 | 0 |
 | [`powershell-ci`](powershell-ci.md) | 1 | 0 | 3 |
 | [`python-ci`](python-ci.md) | 1 | 0 | 5 |
-| [`release-verify`](release-verify.md) | 1 | 0 | 5 |
+| [`release-verify`](release-verify.md) | 1 | 0 | 6 |
 | [`rust-audit`](rust-audit.md) | 2 | 0 | 4 |
 | [`rust-ci`](rust-ci.md) | 8 | 6 | 12 |
 | [`rust-debian`](rust-debian.md) | 2 | 1 | 8 |

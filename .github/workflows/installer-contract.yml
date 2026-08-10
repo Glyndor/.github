@@ -5,6 +5,11 @@ name: Installer contract (reusable)
 # install.sh downloads `<name>-${OS}-${ARCH}` for the platform it runs on, and
 # the release workflow publishes a fixed list of assets. If the two drift, the
 # installer breaks for users. This catches the drift on the PR, before any tag.
+#
+# Also asserts the release workflow produces a `SHA256SUMS` manifest — the
+# same manifest the install scripts verify downloaded binaries against. A
+# release without one cannot be verified at install time, and a release
+# workflow that stops producing one is a silent breaking change.
 
 on:
   workflow_call:
@@ -75,6 +80,21 @@ jobs:
                                      release_yml.read_text(), re.MULTILINE))
           if not published:
               sys.exit(f"installer-contract: could not parse asset names from {release_yml}.")
+
+          # The release must publish a SHA256SUMS manifest — the install
+          # scripts verify downloaded binaries against this file. A release
+          # workflow that stops producing one is a silent breaking change
+          # (install.sh keeps fetching the URL and gets a 404 mid-installer,
+          # which is the failure mode that motivated the gate). Match the
+          # presence of the path on the manifest side, not the upload step
+          # name on the workflow side, so the check stays valid across
+          # workflow renames.
+          if "SHA256SUMS" not in published:
+              sys.exit(
+                  "installer-contract: release workflow does not publish "
+                  "a SHA256SUMS asset; install scripts cannot verify downloads.\n"
+                  f"published: {sorted(published)}"
+              )
 
           missing = sorted(requestable - published)
           if missing:
