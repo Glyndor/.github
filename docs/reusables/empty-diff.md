@@ -24,7 +24,12 @@ a required check whose name nothing emits blocks every pull request.
 
 | Check | Emitted when |
 |---|---|
-| `example / empty diff` | always |
+| `example / empty diff` | `github.event_name == 'pull_request'` |
+
+1 of these 1 are conditional: they do not run,
+and therefore emit no check, unless the input in the right-hand column says
+so. Requiring one in a ruleset without setting its input is how a phantom
+check is created.
 
 ## Inputs
 
