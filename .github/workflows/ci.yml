@@ -1,0 +1,22 @@
+name: CI
+
+# Thin caller: this repository carries no product code, so the only CI it
+# runs against itself is the new-reusable gate that catches no-op PRs
+# (squash-merge hiding the second `-v2` landing as a commit with zero files
+# changed). Proven on Glyndor/apt#89 and Glyndor/homebrew-tap#54 before the
+# v1.14.0 tag of Glyndor/.github was cut. The reusable's emitted check name
+# is `empty-diff / empty diff`; it is advisory here too, not required in any
+# ruleset, until a few weeks of green across the four consumers confirms the
+# name has stabilised.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  empty-diff:
+    uses: Glyndor/.github/.github/workflows/empty-diff.yml@7eb2c699bed5e49b7974ff9b0e613712d5da88cb # v1.14.0
