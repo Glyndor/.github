@@ -10,6 +10,7 @@ which blocks every pull request until someone works out why.
 |---|---|---|---|
 | [`bun-ci`](bun-ci.md) | 1 | 0 | 3 |
 | [`dco`](dco.md) | 1 | 0 | 0 |
+| [`dependabot-freshness`](dependabot-freshness.md) | 1 | 0 | 1 |
 | [`empty-diff`](empty-diff.md) | 1 | 1 | 0 |
 | [`go-audit`](go-audit.md) | 2 | 0 | 4 |
 | [`go-ci`](go-ci.md) | 1 | 0 | 3 |
