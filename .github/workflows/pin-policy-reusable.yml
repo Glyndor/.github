@@ -35,8 +35,8 @@ on:
         description: >-
           Path to the checked-out caller repository, relative to the
           reusable's `actions/checkout`. Defaults to the workspace root,
-          which is right for the usual `uses: ...@<sha>` caller that
-          checks out its own repository under `${{ github.workspace }}`.
+          which is right for the usual caller that checks out its own
+          repository there.
         type: string
         required: false
         default: .
