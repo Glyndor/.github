@@ -28,5 +28,5 @@ jobs:
     uses: Glyndor/.github/.github/workflows/empty-diff.yml@c958978687af37dc2d826a967d9c549589afb39f # v1.14.1
 
   pin-policy:
-    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@c7f8c63f7b3e7987846c76551aa746b50c7536b1 # v1.15.0
+    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@450db9ba37e0fab4806618dfe0f95358ba506db1 # v1.15.0
 
