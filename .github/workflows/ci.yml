@@ -8,6 +8,11 @@ name: CI
 # is `empty-diff / empty diff`; it is advisory here too, not required in any
 # ruleset, until a few weeks of green across the four consumers confirms the
 # name has stabilised.
+#
+# `pin-policy` runs the per-repo pin-policy reusable. The cross-repo form
+# that read every consumer's workflows from here was retired in the same
+# PR (it could not reach private consumers — run 31733343259, 2026-08-13,
+# demonstrated the failure mode).
 
 on:
   pull_request:
@@ -21,3 +26,7 @@ jobs:
   empty-diff:
     if: github.event_name == 'pull_request'
     uses: Glyndor/.github/.github/workflows/empty-diff.yml@c958978687af37dc2d826a967d9c549589afb39f # v1.14.1
+
+  pin-policy:
+    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@c7f8c63f7b3e7987846c76551aa746b50c7536b1 # v1.15.0
+

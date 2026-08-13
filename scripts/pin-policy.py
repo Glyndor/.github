@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that every consumer's reusable pin points at a surface that matches
+"""Check that this repository's reusable pins point at a surface that matches
 the latest released tag.
 
 The CI standard's pin policy is "bump only when the tag's surface differs
@@ -11,33 +11,36 @@ a bump, which the policy then closes without merging, burning Dependabot's
 fresh on every run, against the bytes the tag and the SHA point at, so the
 policy does not depend on a hand-maintained ledger.
 
-For every reusable pin a consumer has (extracted from every workflow file
-under .github/workflows/), the script reads the reusable's surface at the
-consumer's pinned SHA and at the latest released tag, then compares the
-two byte-for-byte. A surface difference means a bump is owed under the
-policy; a consumer the script cannot read also fails the job (run
-31658807184, 2026-08-13, showed why the second condition is needed: it
-skipped `template-repository` after a 404 and reported `OK: 15  DIFF: 0`).
+For every reusable pin in the repository this script is invoked from
+(extracted from every workflow file under `.github/workflows/`), the script
+reads the reusable's surface at the pinned SHA and at the latest released
+tag, then compares the two byte-for-byte. A surface difference means a
+bump is owed under the policy; an unreadable pin also fails the job (run
+31658807184, 2026-08-13, showed why: the central cross-repo run skipped
+`template-repository` after a 404 and reported `OK: 15  DIFF: 0`).
+
+The script expects to be invoked from inside the repository it is
+checking. Cross-repo reads are limited to the reusable surface at the
+pinned SHA and at the latest tag (both in `Glyndor/.github`); the workflow
+files of the consumer itself are read locally from the checkout. This is
+the consumer-side reuse: every repo runs the check with its own
+`GITHUB_TOKEN`, which always covers its own files, so a private consumer
+no longer breaks the guard.
 
 Conscious non-goals: the script does not bump anything (Dependabot opens
 the PR), and does not pin the consumer to the latest tag's SHA (that
 re-introduces the lockout the policy exists to prevent).
 """
 
+import argparse
 import base64
 import json
+import os
 import re
 import subprocess
 import sys
 
-SELF_REPO = "Glyndor/.github"
-CONSUMERS = [
-    "apt",
-    "homebrew-tap",
-    "scoop-bucket",
-    "klyradb",
-    "template-repository",
-]
+UPSTREAM_REPO = "Glyndor/.github"
 
 # A reusable reference inside a `uses:` line. Matches:
 #   uses: Glyndor/.github/.github/workflows/<X>.yml@<SHA> # v1.2.3
@@ -51,13 +54,21 @@ REUSABLE_REF = re.compile(
     r"(?:\s*#.*)?$",
     re.MULTILINE,
 )
+TAG_RE = re.compile(r"^v\d+\.\d+\.\d+$")
+# Cache reusable surface bytes per (reusable, ref) so the latest tag is fetched
+# once per reusable, not once per pin. A transient 5xx or a rate-limit hit on
+# one of the first calls would otherwise turn into a red that reads like
+# policy drift.
+_SURFACE_CACHE = {}
 
 
 def gh_api(path, jq=None):
-    # `gh api` is banned for the maintainer's own credentials — the org account
-    # has been suspended over raw API traffic before. A workflow is a different
-    # actor: GITHUB_TOKEN is a scoped job token on its own rate limit, which is
-    # the documented exception.
+    # The cross-repo reads below (the reusable surfaces at pinned and tag
+    # refs) are limited to Glyndor/.github and run with the job's
+    # GITHUB_TOKEN, which is a scoped bot actor on its own rate limit — the
+    # documented exception to the gh api ban that the maintainer's own
+    # credentials do not get. Reading this repo's own workflows is a
+    # checkout, not an API call.
     cmd = ["gh", "api", path]
     if jq is not None:
         cmd += ["--jq", jq]
@@ -70,7 +81,7 @@ def gh_api_json(path):
 
 
 def call_failure(exc):
-    """Return the reason a `gh api` call failed, for an operator to act on.
+    """Return the reason a `git api` call failed, for an operator to act on.
 
     The first version of this script formatted the CalledProcessError itself,
     which prints the argv and the exit status and drops stderr — so the run
@@ -83,24 +94,17 @@ def call_failure(exc):
     return f"no stderr, exit status {exc.returncode}"
 
 
-# Cache reusable surface bytes per (reusable, ref) so the latest tag is fetched
-# once per reusable, not once per pin. A transient 5xx or a rate-limit hit on
-# one of the first calls would otherwise turn into a red that reads like
-# policy drift.
-_SURFACE_CACHE = {}
-
-
 def fetch_reusable_surface(reusable, ref):
     """Return the raw bytes of `.github/workflows/<reusable>.yml` at <ref>."""
     key = (reusable, ref)
     if key in _SURFACE_CACHE:
         return _SURFACE_CACHE[key]
     data = gh_api_json(
-        f"repos/{SELF_REPO}/contents/.github/workflows/{reusable}.yml?ref={ref}"
+        f"repos/{UPSTREAM_REPO}/contents/.github/workflows/{reusable}.yml?ref={ref}"
     )
     if data.get("type") != "file":
         raise RuntimeError(
-            f"repos/{SELF_REPO}/contents/.github/workflows/{reusable}.yml?ref={ref} "
+            f"repos/{UPSTREAM_REPO}/contents/.github/workflows/{reusable}.yml?ref={ref} "
             f"is a {data.get('type')!r}, expected a file"
         )
     bytes_ = base64.b64decode(data["content"])
@@ -108,68 +112,50 @@ def fetch_reusable_surface(reusable, ref):
     return bytes_
 
 
-def consumer_workflow_text(repo, workflow):
-    """Return the raw text of `Glyndor/<repo>/.github/workflows/<workflow>` at main."""
-    data = gh_api_json(
-        f"repos/Glyndor/{repo}/contents/.github/workflows/{workflow}?ref=main"
+def list_workflows(workdir):
+    """List workflow files under <workdir>/.github/workflows/, by basename."""
+    wf_dir = os.path.join(workdir, ".github", "workflows")
+    if not os.path.isdir(wf_dir):
+        raise RuntimeError(f"{wf_dir} is not a directory")
+    return sorted(
+        name
+        for name in os.listdir(wf_dir)
+        if name.endswith((".yml", ".yaml")) and os.path.isfile(os.path.join(wf_dir, name))
     )
-    if data.get("type") != "file":
-        return None
-    return base64.b64decode(data["content"]).decode("utf-8")
 
 
-def consumer_workflow_list(repo):
-    """List the workflow files in `Glyndor/<repo>/.github/workflows/` at main."""
-    data = gh_api_json(
-        f"repos/Glyndor/{repo}/contents/.github/workflows?ref=main"
-    )
-    if not isinstance(data, list):
-        # The contents endpoint returns a single file object if the path is a
-        # file; for a directory it returns an array. A 404 or other error
-        # shape fails the gh_api_json call earlier.
-        raise RuntimeError(
-            f"repos/Glyndor/{repo}/contents/.github/workflows?ref=main returned "
-            f"a {type(data).__name__}, expected a directory listing"
-        )
-    return [
-        entry["name"]
-        for entry in data
-        if entry.get("type") == "file" and entry["name"].endswith((".yml", ".yaml"))
-    ]
+def read_workflow(workdir, name):
+    path = os.path.join(workdir, ".github", "workflows", name)
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
 
 
-def check_consumer(consumer, latest_tag, stale, unreadable):
-    """Compare every reusable pin in one consumer against the latest tag.
+def check_repo(repo, latest_tag, workdir):
+    """Compare every reusable pin in <repo>'s checked-out workflows.
 
-    Returns a tuple `(ok, fully_read)`:
-      - `ok` is the number of pins whose surface matched the latest tag
-      - `fully_read` is False if any read against this consumer failed (a
-        list, a file, or a surface); a single failed read is enough — the
-        summary treats such a consumer as not approved, even if other pins
-        in the same consumer compared clean.
+    Returns `(ok, fully_read, stale, unreadable)` where `stale` is a list of
+    `(workflow, reusable, pinned)` tuples and `unreadable` is a list of
+    `(where, reason)` tuples. `fully_read` is False if any read against
+    this repository failed — a single failure makes the summary treat the
+    repository as not approved, even if other pins compared clean.
     """
     try:
-        workflows = consumer_workflow_list(consumer)
-    except (subprocess.CalledProcessError, RuntimeError) as exc:
-        reason = call_failure(exc) if isinstance(exc, subprocess.CalledProcessError) else str(exc)
-        print(f"::error::Glyndor/{consumer}: cannot list .github/workflows at main: {reason}")
-        unreadable.append((consumer, reason))
-        return 0, False
+        workflows = list_workflows(workdir)
+    except (OSError, RuntimeError) as exc:
+        print(f"::error::{repo}: cannot list .github/workflows at HEAD: {exc}")
+        return 0, False, [], [(f"{repo}/.github/workflows", str(exc))]
 
     ok = 0
-    consumer_unread = 0
+    stale = []
+    unreadable = []
     pins = 0
 
     for workflow in workflows:
         try:
-            text = consumer_workflow_text(consumer, workflow)
-        except subprocess.CalledProcessError as exc:
-            reason = call_failure(exc)
-            print(f"::error::Glyndor/{consumer}/{workflow}: cannot read the file: {reason}")
-            unreadable.append((f"{consumer}/{workflow}", reason))
-            consumer_unread += 1
-            continue
-        if text is None:
+            text = read_workflow(workdir, workflow)
+        except OSError as exc:
+            print(f"::error::{repo}/{workflow}: cannot read the file: {exc}")
+            unreadable.append((f"{repo}/{workflow}", str(exc)))
             continue
 
         for match in REUSABLE_REF.finditer(text):
@@ -181,64 +167,72 @@ def check_consumer(consumer, latest_tag, stale, unreadable):
             except (subprocess.CalledProcessError, RuntimeError) as exc:
                 reason = call_failure(exc) if isinstance(exc, subprocess.CalledProcessError) else str(exc)
                 print(
-                    f"::error::Glyndor/{consumer}/{workflow} pin "
-                    f"{reusable}@{pinned[:7]}: cannot read the surface at the pinned SHA: {reason}"
+                    f"::error::{repo}/{workflow} pin {reusable}@{pinned[:7]}: "
+                    f"cannot read the surface at the pinned SHA: {reason}"
                 )
-                unreadable.append(
-                    (f"{consumer}/{workflow} {reusable}@{pinned[:7]}", f"pinned-SHA: {reason}")
-                )
-                consumer_unread += 1
+                unreadable.append((f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"pinned-SHA: {reason}"))
                 continue
             try:
                 latest_surface = fetch_reusable_surface(reusable, latest_tag)
             except (subprocess.CalledProcessError, RuntimeError) as exc:
                 reason = call_failure(exc) if isinstance(exc, subprocess.CalledProcessError) else str(exc)
                 print(
-                    f"::error::Glyndor/{consumer}/{workflow} pin "
-                    f"{reusable}@{pinned[:7]}: {latest_tag} no longer contains a {reusable} file: {reason}"
+                    f"::error::{repo}/{workflow} pin {reusable}@{pinned[:7]}: "
+                    f"{latest_tag} no longer contains a {reusable} file: {reason}"
                 )
-                unreadable.append(
-                    (f"{consumer}/{workflow} {reusable}@{pinned[:7]}", f"latest-tag: {reason}")
-                )
-                consumer_unread += 1
+                unreadable.append((f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"latest-tag: {reason}"))
                 continue
 
             if pinned_surface == latest_surface:
                 print(
-                    f"OK    Glyndor/{consumer}/{workflow} "
-                    f"{reusable}@{pinned[:7]} matches {latest_tag} surface "
-                    f"({len(pinned_surface)} bytes)"
+                    f"OK    {repo}/{workflow} {reusable}@{pinned[:7]} matches "
+                    f"{latest_tag} surface ({len(pinned_surface)} bytes)"
                 )
                 ok += 1
             else:
                 print(
-                    f"DIFF  Glyndor/{consumer}/{workflow} "
-                    f"{reusable}@{pinned[:7]} surface differs from {latest_tag} "
-                    f"(pinned {len(pinned_surface)} B vs latest {len(latest_surface)} B)"
+                    f"DIFF  {repo}/{workflow} {reusable}@{pinned[:7]} surface differs "
+                    f"from {latest_tag} (pinned {len(pinned_surface)} B vs latest "
+                    f"{len(latest_surface)} B)"
                 )
-                stale.append((consumer, workflow, reusable, pinned))
+                stale.append((workflow, reusable, pinned))
 
-    if pins == 0 and consumer_unread == 0:
+    if pins == 0 and not unreadable:
         # No pins found AND every workflow read cleanly. Printed explicitly,
-        # because a consumer that produces no line at all is indistinguishable
-        # in the log from one that was never reached. The consumer that
-        # contributed no pins may not stay that way; the consumer whose reads
-        # failed is reported in the UNREADABLE block below instead.
-        print(
-            f"NONE  Glyndor/{consumer}: no reusable pin in "
-            f"{len(workflows)} workflow file(s)"
-        )
+        # because a repository that produces no line at all is
+        # indistinguishable in the log from one that was never reached.
+        print(f"NONE  {repo}: no reusable pin in {len(workflows)} workflow file(s)")
 
-    return ok, consumer_unread == 0
-
-
-TAG_RE = re.compile(r"^v\d+\.\d+\.\d+$")
+    return ok, not unreadable, stale, unreadable
 
 
 def main():
-    latest_tag = gh_api(f"repos/{SELF_REPO}/releases/latest", jq=".tag_name").strip()
+    # The cache lives for the duration of one process invocation only;
+    # clearing it here also lets test harnesses re-import the module
+    # without seeing stale results.
+    _SURFACE_CACHE.clear()
+
+    parser = argparse.ArgumentParser(
+        description="Compare a repository's reusable pins against the latest .github tag."
+    )
+    parser.add_argument(
+        "--repo",
+        default=os.environ.get("GITHUB_REPOSITORY", ""),
+        help="Repository name in 'owner/repo' form (default: $GITHUB_REPOSITORY).",
+    )
+    parser.add_argument(
+        "--workdir",
+        default=".",
+        help="Path to the checked-out repository (default: current directory).",
+    )
+    args = parser.parse_args()
+    if not args.repo or "/" not in args.repo:
+        print("::error::--repo (or $GITHUB_REPOSITORY) must be in 'owner/repo' form.")
+        sys.exit(1)
+
+    latest_tag = gh_api(f"repos/{UPSTREAM_REPO}/releases/latest", jq=".tag_name").strip()
     if not latest_tag:
-        print("::error::No latest release on Glyndor/.github.")
+        print(f"::error::No latest release on {UPSTREAM_REPO}.")
         sys.exit(1)
     if not TAG_RE.match(latest_tag):
         # Defensive: the tag string is interpolated into every request path
@@ -249,37 +243,29 @@ def main():
     print(f"Latest tag: {latest_tag}")
     print()
 
-    stale = []
-    unreadable = []
-    ok = 0
-    fully_read = 0
-
-    for consumer in CONSUMERS:
-        consumer_ok, clean = check_consumer(consumer, latest_tag, stale, unreadable)
-        ok += consumer_ok
-        if clean:
-            fully_read += 1
+    ok, fully_read, stale, unreadable = check_repo(args.repo, latest_tag, args.workdir)
+    compared = ok + len(stale)
 
     print()
     print(
-        f"Consumers read: {fully_read} of {len(CONSUMERS)}  "
-        f"pins compared: {ok + len(stale)}  OK: {ok}  DIFF: {len(stale)}  "
-        f"UNREADABLE: {len(unreadable)}"
+        f"Pins compared: {compared}  OK: {ok}  DIFF: {len(stale)}  "
+        f"UNREADABLE: {len(unreadable)}  "
+        f"({'fully read' if fully_read else 'partially read'})"
     )
 
     if unreadable:
         print()
-        print("These reads failed, so their pins were never compared. A consumer this")
-        print("job cannot read is not a consumer it approved:")
-        for name, reason in unreadable:
-            print(f"  Glyndor/{name}: {reason}")
+        print("These reads failed, so their pins were never compared. A pin this")
+        print("job cannot read is not a pin it approved:")
+        for where, reason in unreadable:
+            print(f"  {where}: {reason}")
 
     if stale:
         print()
-        print("These consumer pins point at a SHA whose reusable surface differs from the")
-        print(f"latest tag ({latest_tag}). Under the pin policy, a bump is owed for each:")
-        for consumer, workflow, reusable, pinned in stale:
-            print(f"  Glyndor/{consumer}/{workflow} {reusable}@{pinned[:7]}")
+        print(f"These pins point at a SHA whose reusable surface differs from {latest_tag}.")
+        print("Under the pin policy, a bump is owed for each:")
+        for workflow, reusable, pinned in stale:
+            print(f"  {args.repo}/{workflow} {reusable}@{pinned[:7]}")
         print("Dependabot will open the bump when a release tags a surface change; the")
         print("merge is then a normal reviewer decision. If no Dependabot PR appears,")
         print("the dependabot-freshness guard will surface that as the alert it never")
@@ -289,10 +275,7 @@ def main():
         sys.exit(1)
 
     print()
-    print(
-        f"All {ok} pin(s) across {fully_read} of {len(CONSUMERS)} consumer(s) are at the "
-        f"latest surface. No bump owed."
-    )
+    print(f"All {ok} pin(s) are at the {latest_tag} surface. No bump owed.")
 
 
 if __name__ == "__main__":
