@@ -1,0 +1,77 @@
+name: Pin policy (reusable)
+
+# Fail when a reusable pin in this repository points at a SHA whose surface
+# differs from the latest released tag.
+#
+# The pin policy in standards/ci is "bump only when the tag's surface
+# differs from the current pin" — a tighter rule than "always-latest",
+# which would burn the open-pull-requests-limit on no-op bumps. The policy
+# was justified by a one-line tag log per repo, with the implicit promise
+# that someone (a script, a CI job) would keep the log honest. The log is
+# not maintained and the bytes are; this job is the question, not the
+# ledger.
+#
+# The reusable is the consumer-side form of the previous cross-repo guard
+# (pin-policy.yml on .github's own schedule/push). The cross-repo form
+# read every consumer's workflows with .github's GITHUB_TOKEN, which
+# could not reach a private consumer (run 31658807184, 2026-08-13, skipped
+# template-repository after a 404 and reported `OK: 15  DIFF: 0`). Each
+# consumer running this reusable uses its own token, which always covers
+# its own files; private consumers are no longer an exception.
+#
+# Default shell is pinned to bash: the inner run block does not work on
+# PowerShell, and a future Windows caller would otherwise get empty
+# strings where it expects exit codes.
+#
+# `concurrency:` cancels an in-flight run when a newer one starts. The
+# group key uses `github.workflow` so an unrelated caller triggering the
+# same reusable does not collide, and `github.ref` to distinguish per-ref
+# runs.
+
+on:
+  workflow_call:
+    inputs:
+      workdir:
+        description: >-
+          Path to the checked-out caller repository, relative to the
+          reusable's `actions/checkout`. Defaults to the workspace root,
+          which is right for the usual caller that checks out its own
+          repository there.
+        type: string
+        required: false
+        default: .
+
+permissions: {}
+
+concurrency:
+  group: pin-policy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pin-policy:
+    name: pin policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the caller repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: caller
+
+      - name: Check out Glyndor/.github for the script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Glyndor/.github
+          persist-credentials: false
+          path: upstream
+
+      - name: Run the pin policy check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 upstream/scripts/pin-policy.py --workdir "caller/${{ inputs.workdir }}"
