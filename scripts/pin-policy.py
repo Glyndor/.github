@@ -130,7 +130,7 @@ def read_workflow(workdir, name):
         return fh.read()
 
 
-def check_repo(repo, latest_tag, workdir, self_reusable=None):
+def check_repo(repo, latest_tag, workdir, self_reusables=None):
     """Compare every reusable pin in <repo>'s checked-out workflows.
 
     Returns `(ok, fully_read, stale, unreadable)` where `stale` is a list of
@@ -139,10 +139,12 @@ def check_repo(repo, latest_tag, workdir, self_reusable=None):
     this repository failed — a single failure makes the summary treat the
     repository as not approved, even if other pins compared clean.
 
-    `self_reusable` is the name of the reusable that runs this check
-    (typically `pin-policy-reusable`). Any pin pointing to it is the
-    caller's own invocation and is skipped, because the check cannot
-    verify a reusable against itself before the reusable has a tag.
+    `self_reusables` is an iterable of reusable names to skip — the
+    caller's own invocation (`pin-policy-reusable`) and any reusables
+    that have been added since the latest tag was cut and live on main
+    only. The check cannot verify a reusable against itself before the
+    reusable has a tag, and the same gap applies to not-yet-tagged
+    reusables on the same repo.
     """
     try:
         workflows = list_workflows(workdir)
@@ -166,11 +168,13 @@ def check_repo(repo, latest_tag, workdir, self_reusable=None):
         for match in REUSABLE_REF.finditer(text):
             reusable = match.group("reusable")
             pinned = match.group("sha")
-            if reusable == self_reusable:
+            if self_reusables is not None and reusable in self_reusables:
                 # The caller's own reusable lives in the caller's workflow
                 # files (typically `ci.yml`). Checking it against itself
                 # would always fail until the reusable's first tag is cut,
-                # which is the opposite of the guard's purpose.
+                # which is the opposite of the guard's purpose. The list
+                # also covers reusables that were added since the latest
+                # tag and live on main only — same shape, same gap.
                 continue
             pins += 1
             try:
@@ -237,13 +241,15 @@ def main():
         help="Path to the checked-out repository (default: current directory).",
     )
     parser.add_argument(
-        "--self-reusable",
+        "--self-reusables",
         default="pin-policy-reusable",
         help=(
-            "Name of the reusable that runs this check. Any pin pointing to "
-            "this reusable is the caller's own invocation and is skipped, "
-            "since the check cannot verify a reusable against itself before "
-            "the reusable has a tag."
+            "Comma-separated names of reusables to skip. The caller's own "
+            "invocation (pin-policy-reusable) is always skipped, since the "
+            "check cannot verify a reusable against itself before the "
+            "reusable has a tag. Also include any reusables added since the "
+            "latest tag was cut — they live on main only, which is the same "
+            "gap as a self-reference."
         ),
     )
     args = parser.parse_args()
@@ -264,8 +270,9 @@ def main():
     print(f"Latest tag: {latest_tag}")
     print()
 
+    self_reusables = frozenset(s.strip() for s in args.self_reusables.split(",") if s.strip())
     ok, fully_read, stale, unreadable = check_repo(
-        args.repo, latest_tag, args.workdir, self_reusable=args.self_reusable
+        args.repo, latest_tag, args.workdir, self_reusables=self_reusables
     )
     compared = ok + len(stale)
 

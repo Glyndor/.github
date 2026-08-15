@@ -76,4 +76,4 @@ jobs:
           set -euo pipefail
           python3 upstream/scripts/pin-policy.py \
             --workdir "caller/${{ inputs.workdir }}" \
-            --self-reusable pin-policy-reusable
+            --self-reusables pin-policy-reusable,dependabot-freshness
