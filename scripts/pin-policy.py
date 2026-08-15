@@ -130,7 +130,7 @@ def read_workflow(workdir, name):
         return fh.read()
 
 
-def check_repo(repo, latest_tag, workdir):
+def check_repo(repo, latest_tag, workdir, self_reusable=None):
     """Compare every reusable pin in <repo>'s checked-out workflows.
 
     Returns `(ok, fully_read, stale, unreadable)` where `stale` is a list of
@@ -138,6 +138,11 @@ def check_repo(repo, latest_tag, workdir):
     `(where, reason)` tuples. `fully_read` is False if any read against
     this repository failed — a single failure makes the summary treat the
     repository as not approved, even if other pins compared clean.
+
+    `self_reusable` is the name of the reusable that runs this check
+    (typically `pin-policy-reusable`). Any pin pointing to it is the
+    caller's own invocation and is skipped, because the check cannot
+    verify a reusable against itself before the reusable has a tag.
     """
     try:
         workflows = list_workflows(workdir)
@@ -161,6 +166,12 @@ def check_repo(repo, latest_tag, workdir):
         for match in REUSABLE_REF.finditer(text):
             reusable = match.group("reusable")
             pinned = match.group("sha")
+            if reusable == self_reusable:
+                # The caller's own reusable lives in the caller's workflow
+                # files (typically `ci.yml`). Checking it against itself
+                # would always fail until the reusable's first tag is cut,
+                # which is the opposite of the guard's purpose.
+                continue
             pins += 1
             try:
                 pinned_surface = fetch_reusable_surface(reusable, pinned)
@@ -225,6 +236,16 @@ def main():
         default=".",
         help="Path to the checked-out repository (default: current directory).",
     )
+    parser.add_argument(
+        "--self-reusable",
+        default="pin-policy-reusable",
+        help=(
+            "Name of the reusable that runs this check. Any pin pointing to "
+            "this reusable is the caller's own invocation and is skipped, "
+            "since the check cannot verify a reusable against itself before "
+            "the reusable has a tag."
+        ),
+    )
     args = parser.parse_args()
     if not args.repo or "/" not in args.repo:
         print("::error::--repo (or $GITHUB_REPOSITORY) must be in 'owner/repo' form.")
@@ -243,7 +264,9 @@ def main():
     print(f"Latest tag: {latest_tag}")
     print()
 
-    ok, fully_read, stale, unreadable = check_repo(args.repo, latest_tag, args.workdir)
+    ok, fully_read, stale, unreadable = check_repo(
+        args.repo, latest_tag, args.workdir, self_reusable=args.self_reusable
+    )
     compared = ok + len(stale)
 
     print()
