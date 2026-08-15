@@ -43,18 +43,34 @@ import sys
 UPSTREAM_REPO = "Glyndor/.github"
 
 # A reusable reference inside a `uses:` line. Matches:
-#   uses: Glyndor/.github/.github/workflows/<X>.yml@<SHA> # v1.2.3
-# Captures the reusable name and the SHA, with optional trailing comment
-# kept out of the SHA group.
+#   uses: Glyndor/.github/.github/workflows/<X>.yml@<SHA> # v1.2.3 (PR #121)
+# Captures the reusable name, the SHA, and the trailing comment. The
+# comment is optional and is consumed only to validate the tag token
+# against a real tag on Glyndor/.github — see `extract_tag_token`.
 REUSABLE_REF = re.compile(
     r"^\s*uses:\s*"
     r"Glyndor/\.github/\.github/workflows/"
     r"(?P<reusable>[\w.-]+)\.yml@"
     r"(?P<sha>[0-9a-f]{7,40})"
-    r"(?:\s*#.*)?$",
+    r"(?:\s*#(?P<comment>.*))?$",
     re.MULTILINE,
 )
 TAG_RE = re.compile(r"^v\d+\.\d+\.\d+$")
+
+
+def extract_tag_token(comment):
+    """Return the first v<major>.<minor>.<patch> token in `comment`, or None.
+
+    Tolerates annotations like `# v1.14.0 (PR #121)`, `# v1.14.2 — see PR #120`,
+    or free-form prose with no tag token. Used to validate the trailing
+    comment of a `uses:` line against the real tags on Glyndor/.github.
+    """
+    if not comment:
+        return None
+    for token in comment.split():
+        if TAG_RE.match(token):
+            return token
+    return None
 # Cache reusable surface bytes per (reusable, ref) so the latest tag is fetched
 # once per reusable, not once per pin. A transient 5xx or a rate-limit hit on
 # one of the first calls would otherwise turn into a red that reads like
@@ -209,6 +225,65 @@ def check_repo(repo, latest_tag, workdir, self_reusables=None):
                     f"DIFF  {repo}/{workflow} {reusable}@{pinned[:7]} surface differs "
                     f"from {latest_tag} (pinned {len(pinned_surface)} B vs latest "
                     f"{len(latest_surface)} B)"
+                )
+                stale.append((workflow, reusable, pinned))
+                # No need to validate the comment for a pin that already
+                # requires a bump — Dependabot will rewrite the comment
+                # when the bump lands.
+                continue
+
+            # Surface equality holds. Validate the trailing comment against
+            # a real tag on Glyndor/.github: the bytes are the same, but the
+            # comment is what Dependabot reads to propose bumps, and a
+            # bogus comment ("that tag doesn't exist") produces the same
+            # drift class as a byte diff — see homebrew-tap#62.
+            comment_tag = extract_tag_token(match.group("comment"))
+            if comment_tag is None:
+                # No-tag-comment case. The byte check is enough; the
+                # standard recommends the comment but does not require it.
+                continue
+            if comment_tag == latest_tag:
+                # Comment names the same tag we just compared against —
+                # the cheapest possible proof.
+                continue
+            try:
+                comment_surface = fetch_reusable_surface(reusable, comment_tag)
+            except subprocess.CalledProcessError as exc:
+                detail = call_failure(exc)
+                if "Not Found" in detail:
+                    print(
+                        f"::error::{repo}/{workflow} pin {reusable}@{pinned[:7]}: "
+                        f"comment names tag {comment_tag}, but that tag does not exist on {UPSTREAM_REPO}: {detail}"
+                    )
+                    unreadable.append(
+                        (f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"comment-tag-404: {detail}")
+                    )
+                    continue
+                # Rate-limit / transient — same path as the other reads.
+                print(
+                    f"::error::{repo}/{workflow} pin {reusable}@{pinned[:7]}: "
+                    f"cannot read the surface at the comment-named tag {comment_tag}: {detail}"
+                )
+                unreadable.append(
+                    (f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"comment-tag: {detail}")
+                )
+                continue
+            except RuntimeError as exc:
+                print(
+                    f"::error::{repo}/{workflow} pin {reusable}@{pinned[:7]}: "
+                    f"comment named tag {comment_tag} but the surface at that tag is not a file: {exc}"
+                )
+                unreadable.append(
+                    (f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"comment-tag-shape: {exc}")
+                )
+                continue
+
+            if comment_surface != pinned_surface:
+                print(
+                    f"::error::{repo}/{workflow} pin {reusable}@{pinned[:7]}: "
+                    f"comment names tag {comment_tag}, but the surface at that tag "
+                    f"({len(comment_surface)} B) differs from the pinned SHA "
+                    f"({len(pinned_surface)} B). Either the SHA or the tag is wrong."
                 )
                 stale.append((workflow, reusable, pinned))
 
