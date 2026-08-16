@@ -71,6 +71,8 @@ def extract_tag_token(comment):
         if TAG_RE.match(token):
             return token
     return None
+
+
 # Cache reusable surface bytes per (reusable, ref) so the latest tag is fetched
 # once per reusable, not once per pin. A transient 5xx or a rate-limit hit on
 # one of the first calls would otherwise turn into a red that reads like
@@ -136,7 +138,8 @@ def list_workflows(workdir):
     return sorted(
         name
         for name in os.listdir(wf_dir)
-        if name.endswith((".yml", ".yaml")) and os.path.isfile(os.path.join(wf_dir, name))
+        if name.endswith((".yml", ".yaml"))
+        and os.path.isfile(os.path.join(wf_dir, name))
     )
 
 
@@ -196,22 +199,40 @@ def check_repo(repo, latest_tag, workdir, self_reusables=None):
             try:
                 pinned_surface = fetch_reusable_surface(reusable, pinned)
             except (subprocess.CalledProcessError, RuntimeError) as exc:
-                reason = call_failure(exc) if isinstance(exc, subprocess.CalledProcessError) else str(exc)
+                reason = (
+                    call_failure(exc)
+                    if isinstance(exc, subprocess.CalledProcessError)
+                    else str(exc)
+                )
                 print(
                     f"::error::{repo}/{workflow} pin {reusable}@{pinned[:7]}: "
                     f"cannot read the surface at the pinned SHA: {reason}"
                 )
-                unreadable.append((f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"pinned-SHA: {reason}"))
+                unreadable.append(
+                    (
+                        f"{repo}/{workflow} {reusable}@{pinned[:7]}",
+                        f"pinned-SHA: {reason}",
+                    )
+                )
                 continue
             try:
                 latest_surface = fetch_reusable_surface(reusable, latest_tag)
             except (subprocess.CalledProcessError, RuntimeError) as exc:
-                reason = call_failure(exc) if isinstance(exc, subprocess.CalledProcessError) else str(exc)
+                reason = (
+                    call_failure(exc)
+                    if isinstance(exc, subprocess.CalledProcessError)
+                    else str(exc)
+                )
                 print(
                     f"::error::{repo}/{workflow} pin {reusable}@{pinned[:7]}: "
                     f"{latest_tag} no longer contains a {reusable} file: {reason}"
                 )
-                unreadable.append((f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"latest-tag: {reason}"))
+                unreadable.append(
+                    (
+                        f"{repo}/{workflow} {reusable}@{pinned[:7]}",
+                        f"latest-tag: {reason}",
+                    )
+                )
                 continue
 
             if pinned_surface == latest_surface:
@@ -256,7 +277,10 @@ def check_repo(repo, latest_tag, workdir, self_reusables=None):
                         f"comment names tag {comment_tag}, but that tag does not exist on {UPSTREAM_REPO}: {detail}"
                     )
                     unreadable.append(
-                        (f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"comment-tag-404: {detail}")
+                        (
+                            f"{repo}/{workflow} {reusable}@{pinned[:7]}",
+                            f"comment-tag-404: {detail}",
+                        )
                     )
                     continue
                 # Rate-limit / transient — same path as the other reads.
@@ -265,7 +289,10 @@ def check_repo(repo, latest_tag, workdir, self_reusables=None):
                     f"cannot read the surface at the comment-named tag {comment_tag}: {detail}"
                 )
                 unreadable.append(
-                    (f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"comment-tag: {detail}")
+                    (
+                        f"{repo}/{workflow} {reusable}@{pinned[:7]}",
+                        f"comment-tag: {detail}",
+                    )
                 )
                 continue
             except RuntimeError as exc:
@@ -274,7 +301,10 @@ def check_repo(repo, latest_tag, workdir, self_reusables=None):
                     f"comment named tag {comment_tag} but the surface at that tag is not a file: {exc}"
                 )
                 unreadable.append(
-                    (f"{repo}/{workflow} {reusable}@{pinned[:7]}", f"comment-tag-shape: {exc}")
+                    (
+                        f"{repo}/{workflow} {reusable}@{pinned[:7]}",
+                        f"comment-tag-shape: {exc}",
+                    )
                 )
                 continue
 
@@ -332,7 +362,9 @@ def main():
         print("::error::--repo (or $GITHUB_REPOSITORY) must be in 'owner/repo' form.")
         sys.exit(1)
 
-    latest_tag = gh_api(f"repos/{UPSTREAM_REPO}/releases/latest", jq=".tag_name").strip()
+    latest_tag = gh_api(
+        f"repos/{UPSTREAM_REPO}/releases/latest", jq=".tag_name"
+    ).strip()
     if not latest_tag:
         print(f"::error::No latest release on {UPSTREAM_REPO}.")
         sys.exit(1)
@@ -340,12 +372,16 @@ def main():
         # Defensive: the tag string is interpolated into every request path
         # below, and the API response is the only place it comes from. A bad
         # shape here would be a script-level bug, not a policy one.
-        print(f"::error::Latest release tag {latest_tag!r} does not match v<major>.<minor>.<patch>.")
+        print(
+            f"::error::Latest release tag {latest_tag!r} does not match v<major>.<minor>.<patch>."
+        )
         sys.exit(1)
     print(f"Latest tag: {latest_tag}")
     print()
 
-    self_reusables = frozenset(s.strip() for s in args.self_reusables.split(",") if s.strip())
+    self_reusables = frozenset(
+        s.strip() for s in args.self_reusables.split(",") if s.strip()
+    )
     ok, fully_read, stale, unreadable = check_repo(
         args.repo, latest_tag, args.workdir, self_reusables=self_reusables
     )
@@ -367,7 +403,9 @@ def main():
 
     if stale:
         print()
-        print(f"These pins point at a SHA whose reusable surface differs from {latest_tag}.")
+        print(
+            f"These pins point at a SHA whose reusable surface differs from {latest_tag}."
+        )
         print("Under the pin policy, a bump is owed for each:")
         for workflow, reusable, pinned in stale:
             print(f"  {args.repo}/{workflow} {reusable}@{pinned[:7]}")
