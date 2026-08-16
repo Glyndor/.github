@@ -68,4 +68,14 @@ jobs:
       - name: Run actionlint
         env:
           SHELLCHECK_BIN: ${{ env.SHELLCHECK_BIN }}
-        run: actionlint -color "-shellcheck=${SHELLCHECK_BIN}"
+        # `-ignore 'workflow_(repository|sha)'` is a tooling-lag workaround.
+        # actionlint v1.7.12 (the version pinned here, March 2026) does not
+        # yet know about `job.workflow_repository` / `job.workflow_sha`,
+        # which GitHub added specifically so reusables could check out
+        # their own source at the SHA the caller pinned (staff-confirmed
+        # in community#31054 on 2026-04-23, after this actionlint version).
+        # The properties are documented at docs.github.com/en/actions/learn-github-actions/contexts
+        # (table: `job.workflow_*`) and evaluate correctly at runtime; this
+        # filter only suppresses the false-positive until the org bumps
+        # actionlint. Drop the `-ignore` then.
+        run: actionlint -color "-shellcheck=${SHELLCHECK_BIN}" -ignore 'workflow_(repository|sha)'
