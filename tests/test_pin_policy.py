@@ -221,7 +221,7 @@ def test_run_pin_policy_matching_pin_exits_zero(tmp_path, gh_stub, run_pin_polic
 
     proc = run_pin_policy(self_reusables="x")
     assert proc.returncode == 0
-    assert f"Pins compared: 1  OK: 1" in proc.stdout
+    assert "Pins compared: 1  OK: 1" in proc.stdout
 
 
 def test_run_pin_policy_surface_diff_emits_diff_and_exits_one(tmp_path, gh_stub, run_pin_policy) -> None:
@@ -230,7 +230,6 @@ def test_run_pin_policy_surface_diff_emits_diff_and_exits_one(tmp_path, gh_stub,
     """
     pinned_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     tag = "v1.14.1"
-    other_sha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
     gh_stub("repos/Glyndor/.github/releases/latest", _make_release_body(tag))
 
