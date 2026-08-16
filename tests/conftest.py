@@ -15,13 +15,12 @@ without secrets.
 
 from __future__ import annotations
 
+import pytest
 import os
-import shutil
 import subprocess
 import textwrap
 from pathlib import Path
 
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "pin-policy.py"

@@ -15,6 +15,7 @@ all live in this script:
 
 These tests exercise the real `pin-policy.py` binary as a subprocess (the
 script's hyphenated name prevents direct import without renaming, which
+import pytest
 would break the four consumers). `tests/conftest.py` installs a `gh` stub
 on PATH so no network or secret is involved; tests assert on stdout,
 stderr, and exit code.
@@ -27,10 +28,8 @@ fired is not a gate"). The job that wraps this is added in ci.yml.
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 
-import pytest
 
 
 # The reusable's content at a given SHA/tag. For the tests we just need
