@@ -75,13 +75,14 @@ jobs:
           # measured empirically on run 31895030339 (apt#100), which
           # executed pin-policy.py v1.15.0 from a consumer pinned at
           # v1.14.2.
-          # actionlint-disable-next-line expression
           # The two properties below are documented by GitHub as part of
           # the `job` context (see contexts reference) but were added
           # after actionlint v1.7.12 (Mar 2026) was released. The disable
           # is a tooling lag, not a real expression error — the workflow
           # runs unchanged once merged.
+          # actionlint-disable-next-line expression
           repository: ${{ job.workflow_repository }}
+          # actionlint-disable-next-line expression
           ref: ${{ job.workflow_sha }}
           persist-credentials: false
           path: upstream
