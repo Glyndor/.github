@@ -17,7 +17,8 @@ which blocks every pull request until someone works out why.
 | [`go-fuzz`](go-fuzz.md) | 1 | 0 | 3 |
 | [`installer-contract`](installer-contract.md) | 1 | 0 | 3 |
 | [`line-limit`](line-limit.md) | 1 | 0 | 4 |
-| [`main-guard`](main-guard.md) | 1 | 0 | 0 |
+| [`main-guard`](main-guard.md) | 1 | 1 | 0 |
+| [`pin-policy-reusable`](pin-policy-reusable.md) | 1 | 0 | 1 |
 | [`powershell-ci`](powershell-ci.md) | 1 | 0 | 3 |
 | [`python-ci`](python-ci.md) | 1 | 0 | 5 |
 | [`release-verify`](release-verify.md) | 1 | 0 | 6 |
