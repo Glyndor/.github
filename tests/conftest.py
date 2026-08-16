@@ -15,13 +15,12 @@ without secrets.
 
 from __future__ import annotations
 
+import pytest
 import os
-import shutil
 import subprocess
 import textwrap
 from pathlib import Path
 
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "pin-policy.py"
@@ -140,11 +139,21 @@ def run_pin_policy(workdir: Path, monkeypatch: pytest.MonkeyPatch):
     # want to exercise the validation explicitly pass `repo=""` and the
     # fixture below forwards it as `--repo ""` (literal).
     monkeypatch.setenv("GITHUB_REPOSITORY", "Glyndor/test-consumer")
-    def _run(*, repo: str | None = None, self_reusables: str = "",
-             workdir_path: Path | None = None) -> subprocess.CompletedProcess:
-        cmd = ["python3", str(SCRIPT),
-               "--workdir", str(workdir_path or workdir),
-               "--self-reusables", self_reusables]
+
+    def _run(
+        *,
+        repo: str | None = None,
+        self_reusables: str = "",
+        workdir_path: Path | None = None,
+    ) -> subprocess.CompletedProcess:
+        cmd = [
+            "python3",
+            str(SCRIPT),
+            "--workdir",
+            str(workdir_path or workdir),
+            "--self-reusables",
+            self_reusables,
+        ]
         if repo is not None:
             # Forward even empty strings — argparse distinguishes
             # `--repo ""` (explicit empty) from omitting `--repo`
@@ -157,4 +166,5 @@ def run_pin_policy(workdir: Path, monkeypatch: pytest.MonkeyPatch):
             text=True,
             env=os.environ.copy(),
         )
+
     return _run

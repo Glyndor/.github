@@ -15,6 +15,7 @@ all live in this script:
 
 These tests exercise the real `pin-policy.py` binary as a subprocess (the
 script's hyphenated name prevents direct import without renaming, which
+import pytest
 would break the four consumers). `tests/conftest.py` installs a `gh` stub
 on PATH so no network or secret is involved; tests assert on stdout,
 stderr, and exit code.
@@ -27,10 +28,7 @@ fired is not a gate"). The job that wraps this is added in ci.yml.
 from __future__ import annotations
 
 import json
-import re
 import subprocess
-
-import pytest
 
 
 # The reusable's content at a given SHA/tag. For the tests we just need
@@ -43,14 +41,22 @@ def _make_release_body(tag: str = "v1.14.1") -> str:
 
 
 def _make_contents_body(b64: str = "") -> str:
-    return json.dumps({
-        "type": "file",
-        "name": "x.yml",
-        "content": b64,
-    })
+    return json.dumps(
+        {
+            "type": "file",
+            "name": "x.yml",
+            "content": b64,
+        }
+    )
 
 
-def _write_pin(tmp_path, file_name: str, reusable: str = "ci", sha: str = "c958978687af37dc2d826a967d9c549589afb39f", comment: str = "") -> None:
+def _write_pin(
+    tmp_path,
+    file_name: str,
+    reusable: str = "ci",
+    sha: str = "c958978687af37dc2d826a967d9c549589afb39f",
+    comment: str = "",
+) -> None:
     """Append a `uses: ...@<sha>` line to `<file_name>` in `.github/workflows`.
 
     Note: pin-policy.py's regex matches `^\\s*uses:` — a line that
@@ -76,6 +82,7 @@ def _write_pin(tmp_path, file_name: str, reusable: str = "ci", sha: str = "c9589
 
 # --- Gap 4: --repo validation --------------------------------------------
 
+
 def test_run_pin_policy_empty_repo_exits_one(run_pin_policy) -> None:
     """`--repo ""` must fail closed with the documented message."""
     proc = run_pin_policy(repo="")
@@ -92,7 +99,10 @@ def test_run_pin_policy_repo_without_slash_exits_one(run_pin_policy) -> None:
 
 # --- Gap 3: gh api without timeout ---------------------------------------
 
-def test_run_pin_policy_gh_api_timeout_fails_closed(tmp_path, gh_stub, run_pin_policy) -> None:
+
+def test_run_pin_policy_gh_api_timeout_fails_closed(
+    tmp_path, gh_stub, run_pin_policy
+) -> None:
     """A `subprocess.TimeoutExpired` from `gh api` must NOT bubble as a
     Python traceback — the script must catch it and emit a `::error::`
     line, then exit non-zero cleanly.
@@ -112,6 +122,7 @@ def test_run_pin_policy_gh_api_timeout_fails_closed(tmp_path, gh_stub, run_pin_p
     imported.
     """
     from conftest import SCRIPT
+
     timeout_shim = tmp_path / "timeout_shim.py"
     timeout_shim.write_text(
         "import subprocess, sys\n"
@@ -122,13 +133,14 @@ def test_run_pin_policy_gh_api_timeout_fails_closed(tmp_path, gh_stub, run_pin_p
     )
 
     import os
+
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{tmp_path}{os.pathsep}" + env.get("PYTHONPATH", "")
     proc = subprocess.run(
-        ["python3", str(SCRIPT),
-         "--workdir", str(tmp_path),
-         "--self-reusables", ""],
-        capture_output=True, text=True, env=env,
+        ["python3", str(SCRIPT), "--workdir", str(tmp_path), "--self-reusables", ""],
+        capture_output=True,
+        text=True,
+        env=env,
     )
     # Today: traceback (fail-open). After a future fix: ::error:: line
     # + exit non-zero. The test asserts the *current* behaviour so any
@@ -139,7 +151,10 @@ def test_run_pin_policy_gh_api_timeout_fails_closed(tmp_path, gh_stub, run_pin_p
 
 # --- Gap 2: KeyError in fetch_reusable_surface ---------------------------
 
-def test_run_pin_policy_missing_content_field_fails_cleanly(tmp_path, gh_stub, run_pin_policy) -> None:
+
+def test_run_pin_policy_missing_content_field_fails_cleanly(
+    tmp_path, gh_stub, run_pin_policy
+) -> None:
     """A `repos/.../contents/...?ref=<sha>` response with `type: file`
     but no `content` key must not produce a KeyError traceback. The
     audit flagged this as untested.
@@ -158,8 +173,10 @@ def test_run_pin_policy_missing_content_field_fails_cleanly(tmp_path, gh_stub, r
     # response itself, so the script reaches the contents fetch before
     # we hit the missing `content` field.
     gh_stub("repos/Glyndor/.github/releases/latest", _make_release_body("v1.14.1"))
-    gh_stub("repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref=v1.14.1",
-            json.dumps({"type": "file", "name": "x.yml", "content": ""}))
+    gh_stub(
+        "repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref=v1.14.1",
+        json.dumps({"type": "file", "name": "x.yml", "content": ""}),
+    )
 
     _write_pin(tmp_path, "ci.yml", sha="abcdef0", comment="v1.14.1")
 
@@ -170,7 +187,10 @@ def test_run_pin_policy_missing_content_field_fails_cleanly(tmp_path, gh_stub, r
 
 # --- Gap 1: NONE message for zero pins -----------------------------------
 
-def test_run_pin_policy_zero_pins_emits_none_message(tmp_path, gh_stub, run_pin_policy) -> None:
+
+def test_run_pin_policy_zero_pins_emits_none_message(
+    tmp_path, gh_stub, run_pin_policy
+) -> None:
     """A consumer with zero reusable pins must emit `NONE` (the
     historical guard for the `template-repository` skip bug, run
     31658807184, 2026-08-13).
@@ -200,7 +220,10 @@ def test_run_pin_policy_zero_pins_emits_none_message(tmp_path, gh_stub, run_pin_
 
 # --- Happy paths (sanity coverage) ---------------------------------------
 
-def test_run_pin_policy_matching_pin_exits_zero(tmp_path, gh_stub, run_pin_policy) -> None:
+
+def test_run_pin_policy_matching_pin_exits_zero(
+    tmp_path, gh_stub, run_pin_policy
+) -> None:
     """A consumer whose only pin matches the latest tag exits 0 with
     `OK 1` in the summary.
 
@@ -212,34 +235,43 @@ def test_run_pin_policy_matching_pin_exits_zero(tmp_path, gh_stub, run_pin_polic
     tag = "v1.14.1"
     gh_stub("repos/Glyndor/.github/releases/latest", _make_release_body(tag))
     b64 = __import__("base64").b64encode(_PIN_BYTES).decode()
-    gh_stub(f"repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref={sha}",
-            _make_contents_body(b64))
-    gh_stub(f"repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref={tag}",
-            _make_contents_body(b64))
+    gh_stub(
+        f"repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref={sha}",
+        _make_contents_body(b64),
+    )
+    gh_stub(
+        f"repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref={tag}",
+        _make_contents_body(b64),
+    )
 
     _write_pin(tmp_path, "ci.yml", reusable="ci", sha=sha, comment=tag)
 
     proc = run_pin_policy(self_reusables="x")
     assert proc.returncode == 0
-    assert f"Pins compared: 1  OK: 1" in proc.stdout
+    assert "Pins compared: 1  OK: 1" in proc.stdout
 
 
-def test_run_pin_policy_surface_diff_emits_diff_and_exits_one(tmp_path, gh_stub, run_pin_policy) -> None:
+def test_run_pin_policy_surface_diff_emits_diff_and_exits_one(
+    tmp_path, gh_stub, run_pin_policy
+) -> None:
     """A consumer whose pin SHA and latest tag point at different bytes
     must emit `DIFF` and exit non-zero.
     """
     pinned_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     tag = "v1.14.1"
-    other_sha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
     gh_stub("repos/Glyndor/.github/releases/latest", _make_release_body(tag))
 
     b64_pinned = __import__("base64").b64encode(b"PINNED").decode()
     b64_latest = __import__("base64").b64encode(b"LATEST").decode()
-    gh_stub(f"repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref={pinned_sha}",
-            _make_contents_body(b64_pinned))
-    gh_stub(f"repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref={tag}",
-            _make_contents_body(b64_latest))
+    gh_stub(
+        f"repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref={pinned_sha}",
+        _make_contents_body(b64_pinned),
+    )
+    gh_stub(
+        f"repos/Glyndor/.github/contents/.github/workflows/ci.yml?ref={tag}",
+        _make_contents_body(b64_latest),
+    )
 
     _write_pin(tmp_path, "ci.yml", reusable="ci", sha=pinned_sha, comment=tag)
 

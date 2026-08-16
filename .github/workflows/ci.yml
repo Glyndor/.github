@@ -44,7 +44,7 @@ jobs:
   # rename that breaks the four consumer repositories. The 90% gate is
   # a follow-up after the rename.
   tests:
-    uses: Glyndor/.github/.github/workflows/python-ci.yml@028a51f3960c7274701c27af91d6d8457bacdd21 # v1.15.0
+    uses: Glyndor/.github/.github/workflows/python-ci.yml@7099f8a9c8be91fa1732fe2402268b338771233f # v1.15.0
     with:
       coverage-threshold: 0
 
