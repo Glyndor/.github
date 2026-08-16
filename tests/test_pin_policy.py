@@ -278,3 +278,103 @@ def test_run_pin_policy_surface_diff_emits_diff_and_exits_one(
     proc = run_pin_policy(self_reusables="x")
     assert proc.returncode != 0
     assert "DIFF" in proc.stdout
+
+
+def test_run_pin_policy_helper_diff_emits_diff_and_exits_one(
+    tmp_path, gh_stub, run_pin_policy
+) -> None:
+    """A consumer whose pin's reusable bundles a helper that diverges
+    between the pinned SHA and the latest tag must emit `DIFF`.
+
+    The audit (`auditoria-tests-canales.md`) flagged that
+    `fetch_reusable_surface` only compared the workflow file, leaving
+    the bundled script (`scripts/pin-policy.py`) unchecked. Today's
+    pin-policy-reusable bundles exactly that helper, so without this
+    extension a workflow file that is byte-equal between pins would
+    report OK while the script it actually runs had drifted.
+
+    Here the workflow file is identical at both refs, but the helper
+    at the pinned SHA is different from the helper at the latest tag
+    — the transitive-surface comparison must catch it.
+    """
+    pinned_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    tag = "v1.14.1"
+
+    gh_stub("repos/Glyndor/.github/releases/latest", _make_release_body(tag))
+
+    # Same workflow file bytes at both refs (so a workflow-only check
+    # would not detect this divergence).
+    workflow_bytes = b"reusable: name\njobs: {}\n"
+    gh_stub(
+        f"repos/Glyndor/.github/contents/.github/workflows/pin-policy-reusable.yml?ref={pinned_sha}",
+        _make_contents_body(__import__("base64").b64encode(workflow_bytes).decode()),
+    )
+    gh_stub(
+        f"repos/Glyndor/.github/contents/.github/workflows/pin-policy-reusable.yml?ref={tag}",
+        _make_contents_body(__import__("base64").b64encode(workflow_bytes).decode()),
+    )
+
+    # Different helper bytes — the case the audit flagged.
+    gh_stub(
+        f"repos/Glyndor/.github/contents/scripts/pin-policy.py?ref={pinned_sha}",
+        _make_contents_body(
+            __import__("base64").b64encode(b"# at pinned SHA").decode()
+        ),
+    )
+    gh_stub(
+        f"repos/Glyndor/.github/contents/scripts/pin-policy.py?ref={tag}",
+        _make_contents_body(
+            __import__("base64").b64encode(b"# at latest tag").decode()
+        ),
+    )
+
+    _write_pin(
+        tmp_path, "ci.yml", reusable="pin-policy-reusable", sha=pinned_sha, comment=tag
+    )
+
+    proc = run_pin_policy(self_reusables="")
+    assert proc.returncode != 0
+    assert "DIFF" in proc.stdout
+
+
+def test_run_pin_policy_helper_match_exits_zero(
+    tmp_path, gh_stub, run_pin_policy
+) -> None:
+    """A consumer whose pin's reusable bundles a helper that is
+    byte-equal at both refs must emit `OK` and exit 0, even if the
+    script itself is large.
+
+    Symmetric to the diff case: the byte-equal helper alone keeps
+    the run green, and the script's "OK N" count is the assertion.
+    """
+    pinned_sha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    tag = "v1.14.1"
+
+    gh_stub("repos/Glyndor/.github/releases/latest", _make_release_body(tag))
+
+    workflow_bytes = b"reusable: name\njobs: {}\n"
+    helper_bytes = b"# long script body that fills the surface bundle " * 200
+    gh_stub(
+        f"repos/Glyndor/.github/contents/.github/workflows/pin-policy-reusable.yml?ref={pinned_sha}",
+        _make_contents_body(__import__("base64").b64encode(workflow_bytes).decode()),
+    )
+    gh_stub(
+        f"repos/Glyndor/.github/contents/.github/workflows/pin-policy-reusable.yml?ref={tag}",
+        _make_contents_body(__import__("base64").b64encode(workflow_bytes).decode()),
+    )
+    gh_stub(
+        f"repos/Glyndor/.github/contents/scripts/pin-policy.py?ref={pinned_sha}",
+        _make_contents_body(__import__("base64").b64encode(helper_bytes).decode()),
+    )
+    gh_stub(
+        f"repos/Glyndor/.github/contents/scripts/pin-policy.py?ref={tag}",
+        _make_contents_body(__import__("base64").b64encode(helper_bytes).decode()),
+    )
+
+    _write_pin(
+        tmp_path, "ci.yml", reusable="pin-policy-reusable", sha=pinned_sha, comment=tag
+    )
+
+    proc = run_pin_policy(self_reusables="")
+    assert proc.returncode == 0
+    assert "Pins compared: 1  OK: 1" in proc.stdout

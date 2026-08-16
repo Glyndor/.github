@@ -79,6 +79,15 @@ def extract_tag_token(comment):
 # policy drift.
 _SURFACE_CACHE = {}
 
+# Helpers bundled by each reusable, repo-relative paths. The transitive
+# surface per `standards/ci/index.md:38` is workflow + helpers; the
+# `fetch_reusable_surface` function reads both. Today only `pin-policy`
+# itself externalises its script (`scripts/pin-policy.py`); when more
+# reusables here do the same, add them to this mapping.
+HELPERS = {
+    "pin-policy-reusable": ("scripts/pin-policy.py",),
+}
+
 
 def gh_api(path, jq=None):
     # The cross-repo reads below (the reusable surfaces at pinned and tag
@@ -113,7 +122,21 @@ def call_failure(exc):
 
 
 def fetch_reusable_surface(reusable, ref):
-    """Return the raw bytes of `.github/workflows/<reusable>.yml` at <ref>."""
+    """Return the raw bytes of `.github/workflows/<reusable>.yml` and any
+    helpers it bundles at <ref>, concatenated.
+
+    The standard (`standards/ci/index.md:38`) defines equality across the
+    *transitive* surface: workflow file + composite actions + vendored
+    helpers referenced by relative path. `pin-policy-reusable.yml` lives
+    here because it bundles `scripts/pin-policy.py` from the same repo
+    into a `run:` block — the workflow file is the right thing to compare
+    only if the script it runs is byte-identical between pins, which is
+    exactly what this function now verifies.
+
+    Helper paths are repo-relative (start from the repo root, not from
+    the workflow file). The current reusable only uses one helper; when
+    more reusables in this repo externalise their scripts, add them here.
+    """
     key = (reusable, ref)
     if key in _SURFACE_CACHE:
         return _SURFACE_CACHE[key]
@@ -125,7 +148,19 @@ def fetch_reusable_surface(reusable, ref):
             f"repos/{UPSTREAM_REPO}/contents/.github/workflows/{reusable}.yml?ref={ref} "
             f"is a {data.get('type')!r}, expected a file"
         )
-    bytes_ = base64.b64decode(data["content"])
+    workflow_bytes = base64.b64decode(data["content"])
+    bundle = [workflow_bytes]
+    for helper_relpath in HELPERS.get(reusable, ()):
+        helper_data = gh_api_json(
+            f"repos/{UPSTREAM_REPO}/contents/{helper_relpath}?ref={ref}"
+        )
+        if helper_data.get("type") != "file":
+            raise RuntimeError(
+                f"repos/{UPSTREAM_REPO}/contents/{helper_relpath}?ref={ref} "
+                f"is a {helper_data.get('type')!r}, expected a file"
+            )
+        bundle.append(base64.b64decode(helper_data["content"]))
+    bytes_ = b"\n".join(bundle)
     _SURFACE_CACHE[key] = bytes_
     return bytes_
 
