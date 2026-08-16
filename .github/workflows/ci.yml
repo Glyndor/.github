@@ -30,3 +30,21 @@ jobs:
   pin-policy:
     uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@baaf5ee60f1c797bc39a94621646e14cc8ba6ed5 # v1.15.0
 
+  # Lint and test the Python scripts that this repository ships. The
+  # job name is `tests`; python-ci.yml's inner job name is `Lint & test`;
+  # the emitted check name on PR runs is `tests / Lint & test`. Until
+  # the emitted name has been observed from a real run that fired for
+  # the right reason, this stays advisory, not required in any ruleset
+  # (see standards/ci/index.md — "A gate that has never fired is not a
+  # gate").
+  #
+  # `coverage-threshold: 0` keeps pytest-cov out of the gate. The script
+  # has a hyphenated name (`pin-policy.py`) and cannot be imported as a
+  # module, so `pytest --cov` would measure nothing useful without a
+  # rename that breaks the four consumer repositories. The 90% gate is
+  # a follow-up after the rename.
+  tests:
+    uses: Glyndor/.github/.github/workflows/python-ci.yml@028a51f3960c7274701c27af91d6d8457bacdd21 # v1.15.0
+    with:
+      coverage-threshold: 0
+
