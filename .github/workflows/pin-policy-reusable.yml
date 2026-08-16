@@ -61,10 +61,22 @@ jobs:
           persist-credentials: false
           path: caller
 
-      - name: Check out Glyndor/.github for the script
+      - name: Check out Glyndor/.github for the script at the pinned SHA
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: Glyndor/.github
+          # `job.workflow_repository` / `job.workflow_sha` resolve to the
+          # reusable's own commit (not the caller's, as `github.workflow_*`
+          # would). `job.*` was added by GitHub specifically so a reusable
+          # could check out its own source at the SHA the caller pinned
+          # (actions/toolkit#1264, community#31054 staff-confirmed 2026-04-23).
+          # Without `ref:`, the checkout defaulted to the reusable repo's
+          # default branch (`main`), so the SHA the caller pinned governed
+          # the workflow file bytes but NOT the script under test —
+          # measured empirically on run 31895030339 (apt#100), which
+          # executed pin-policy.py v1.15.0 from a consumer pinned at
+          # v1.14.2.
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           persist-credentials: false
           path: upstream
 
