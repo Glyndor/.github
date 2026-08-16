@@ -24,7 +24,7 @@ jobs:
     name: actionlint
     runs-on: ubuntu-latest
     env:
-      ACTIONLINT_VERSION: v1.7.12
+      ACTIONLINT_VERSION: v1.18.0
       # Keep in step with the shellcheck-version/shellcheck-sha256 defaults in
       # shell-ci.yml and workflow-lint.yml: this repository should not lint
       # itself to a weaker standard than the one it ships to consumers.
