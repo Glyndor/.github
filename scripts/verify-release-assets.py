@@ -90,8 +90,7 @@ def artifact_names_sh(text: str, path: Path) -> set[str]:
     matched = ARTIFACT_TEMPLATE_RE.fullmatch(template.group(1))
     if not matched:
         fail(
-            'ARTIFACT template must be "<name>-${OS}-${ARCH}"; got '
-            + template.group(1)
+            'ARTIFACT template must be "<name>-${OS}-${ARCH}"; got ' + template.group(1)
         )
     oses = set(OS_RE.findall(text))
     arches = set(ARCH_RE.findall(text))
@@ -112,8 +111,14 @@ def artifact_names_ps1(text: str, path: Path) -> set[str]:
             'the $Artifact template must be "<name>-<os>-$Arch[.ext]"; got '
             + template.group(1)
         )
-    prefix, os_token, suffix = matched.group(1), matched.group(2), matched.group(3) or ""
-    oses = {os_token} if os_token not in ("$OS", "${OS}") else set(PS_OS_RE.findall(text))
+    prefix, os_token, suffix = (
+        matched.group(1),
+        matched.group(2),
+        matched.group(3) or "",
+    )
+    oses = (
+        {os_token} if os_token not in ("$OS", "${OS}") else set(PS_OS_RE.findall(text))
+    )
     arches = set(PS_ARCH_RE.findall(text))
     if not oses or not arches:
         fail(f"could not parse OS/ARCH arms from {path}.")
@@ -188,7 +193,9 @@ def main() -> None:
     if args.install_ps1 and args.install_ps1.is_file():
         artifacts |= artifact_names_ps1(args.install_ps1.read_text(), args.install_ps1)
     elif args.install_ps1:
-        print(f"::notice::verify-release-assets: {args.install_ps1} not found, skipped.")
+        print(
+            f"::notice::verify-release-assets: {args.install_ps1} not found, skipped."
+        )
 
     required = expand(fetches, artifacts)
 
