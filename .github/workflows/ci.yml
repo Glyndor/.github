@@ -25,7 +25,7 @@ permissions:
 jobs:
   empty-diff:
     if: github.event_name == 'pull_request'
-    uses: Glyndor/.github/.github/workflows/empty-diff.yml@c958978687af37dc2d826a967d9c549589afb39f # v1.14.1
+    uses: Glyndor/.github/.github/workflows/empty-diff.yml@fadfbebc989a58a2292438fecbd5a616ffa0bdf3 # v1.15.0
 
   pin-policy:
     uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@8517d94fde00466f59b95c5d1bd838e2ad24a8bf # v1.15.2
@@ -44,7 +44,7 @@ jobs:
   # rename that breaks the four consumer repositories. The 90% gate is
   # a follow-up after the rename.
   tests:
-    uses: Glyndor/.github/.github/workflows/python-ci.yml@7099f8a9c8be91fa1732fe2402268b338771233f # v1.15.0
+    uses: Glyndor/.github/.github/workflows/python-ci.yml@fadfbebc989a58a2292438fecbd5a616ffa0bdf3 # v1.15.0
     with:
       coverage-threshold: 0
 
