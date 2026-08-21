@@ -42,6 +42,23 @@ on:
         description: Extra cargo args for the offline build (e.g. feature flags)
         type: string
         default: ""
+      rust-toolchain:
+        # Empty keeps the distribution's cargo/rustc, which is what every
+        # caller had before this input existed. Set it when the package must
+        # be built by a specific compiler - typically the one the repository's
+        # CI validates with, so the shipped binary is not produced by a
+        # toolchain the test suite never ran against.
+        description: rustup toolchain to install instead of the distro cargo/rustc (empty keeps the distro toolchain)
+        type: string
+        default: ""
+      rust-target:
+        # Requires rust-toolchain: a distribution toolchain carries only its
+        # own target's standard library, so `--target` cannot resolve against
+        # it. rustup targets are per-toolchain, so this installs against the
+        # pinned one rather than whatever is default.
+        description: Extra rustup target to install (needs rust-toolchain; e.g. x86_64-unknown-linux-musl)
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -68,10 +85,34 @@ jobs:
       - name: Install build tooling
         env:
           DEBIAN_FRONTEND: noninteractive
+          RUST_TOOLCHAIN: ${{ inputs.rust-toolchain }}
         run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends \
-            ca-certificates build-essential dpkg-dev debhelper cargo rustc
+          if [ -n "$RUST_TOOLCHAIN" ]; then
+            apt-get install -y --no-install-recommends \
+              ca-certificates build-essential dpkg-dev debhelper curl
+          else
+            apt-get install -y --no-install-recommends \
+              ca-certificates build-essential dpkg-dev debhelper cargo rustc
+          fi
+
+      - name: Install the pinned Rust toolchain
+        # Only when the caller asked for one. rustup goes on PATH for every
+        # later step, and the target is added against the pinned toolchain
+        # rather than the default, because rustup targets are per-toolchain.
+        if: inputs.rust-toolchain != ''
+        env:
+          RUST_TOOLCHAIN: ${{ inputs.rust-toolchain }}
+          RUST_TARGET: ${{ inputs.rust-target }}
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain "$RUST_TOOLCHAIN"
+          . "$HOME/.cargo/env"
+          if [ -n "$RUST_TARGET" ]; then
+            rustup target add "$RUST_TARGET" --toolchain "$RUST_TOOLCHAIN"
+          fi
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -126,10 +167,34 @@ jobs:
       - name: Install build tooling
         env:
           DEBIAN_FRONTEND: noninteractive
+          RUST_TOOLCHAIN: ${{ inputs.rust-toolchain }}
         run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends \
-            ca-certificates build-essential cargo rustc
+          if [ -n "$RUST_TOOLCHAIN" ]; then
+            apt-get install -y --no-install-recommends \
+              ca-certificates build-essential curl
+          else
+            apt-get install -y --no-install-recommends \
+              ca-certificates build-essential cargo rustc
+          fi
+
+      - name: Install the pinned Rust toolchain
+        # Only when the caller asked for one. rustup goes on PATH for every
+        # later step, and the target is added against the pinned toolchain
+        # rather than the default, because rustup targets are per-toolchain.
+        if: inputs.rust-toolchain != ''
+        env:
+          RUST_TOOLCHAIN: ${{ inputs.rust-toolchain }}
+          RUST_TARGET: ${{ inputs.rust-target }}
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain "$RUST_TOOLCHAIN"
+          . "$HOME/.cargo/env"
+          if [ -n "$RUST_TARGET" ]; then
+            rustup target add "$RUST_TARGET" --toolchain "$RUST_TOOLCHAIN"
+          fi
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
