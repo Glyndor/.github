@@ -43,7 +43,7 @@ check is created.
 | Input | Type | Default | Required | Description |
 |---|---|---|---|---|
 | `working-directory` | string | `.` | no | Directory containing the Cargo workspace |
-| `toolchain` | string | `1.97` | no | Rust toolchain to pin the build, lint and test jobs to |
+| `toolchain` | string | `1.98` | no | Rust toolchain to pin the build, lint and test jobs to |
 | `coverage-threshold` | number | `0` | no | Minimum line coverage percentage (0 disables the gate) |
 | `coverage-ignore-regex` | string | — | no | Regex of file paths to exclude from coverage (e.g. code covered only by a separate DB integration job) |
 | `llvm-cov-version` | string | `0.8.7` | no | Exact version of the tool; bumped via .github releases |
