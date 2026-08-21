@@ -78,19 +78,37 @@ jobs:
         run: |
           set -euo pipefail
 
-          # List a small window of recent PRs (any state), filter client-side
-          # for dependabot[bot], and pick the newest. Doing the filter and
-          # sort in jq avoids the GitHub API's known wrinkle where
+          # List recent PRs (any state), filter client-side for
+          # dependabot[bot], and pick the newest. Doing the filter and sort in
+          # jq avoids the GitHub API's known wrinkle where
           # `state=all&sort=created&per_page=1` does not always include
-          # closed/merged PRs in the sort order one would expect, and
-          # depends on the bot author being a queryable user login (it is —
+          # closed/merged PRs in the sort order one would expect, and depends
+          # on the bot author being a queryable user login (it is —
           # dependabot[bot] — not the app slug `app/dependabot`).
-          latest=$(gh api \
-            "repos/${REPO}/pulls?state=all&per_page=20" \
-            --jq '[.[] | select(.user.login == "dependabot[bot]")] | sort_by(.created_at) | reverse | .[0].created_at // empty')
+          #
+          # The window has to be paged, not fixed. A single page of 20 is a
+          # window on *total* PR activity, not on Dependabot's: in a busy
+          # repository the bot's newest pull request falls off the end and the
+          # check reports it as never having run. Measured on Glyndor/podup,
+          # where the twenty newest PRs contained none from Dependabot while
+          # ten sat within the newest forty — the gate failed on a repository
+          # where Dependabot had opened ten pull requests that same day.
+          #
+          # Three pages of 100 is a 300-PR window, and the loop stops at the
+          # first page that yields a hit, so the common case still costs one
+          # request.
+          latest=""
+          pages_read=0
+          for page in 1 2 3; do
+            pages_read="$page"
+            latest=$(gh api \
+              "repos/${REPO}/pulls?state=all&per_page=100&page=${page}" \
+              --jq '[.[] | select(.user.login == "dependabot[bot]")] | sort_by(.created_at) | reverse | .[0].created_at // empty')
+            [ -n "$latest" ] && break
+          done
 
           if [ -z "$latest" ]; then
-            echo "::error::No Dependabot pull request on record for ${REPO}."
+            echo "::error::No Dependabot pull request in the newest $((pages_read * 100)) for ${REPO}."
             echo "Either Dependabot has never run here, or its schedule was dropped." >&2
             echo "Check that dependabot.yml is on the default branch and touches the package ecosystem you expect," >&2
             echo "then disable and re-enable Dependabot to re-register it." >&2
