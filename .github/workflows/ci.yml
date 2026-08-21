@@ -25,10 +25,10 @@ permissions:
 jobs:
   empty-diff:
     if: github.event_name == 'pull_request'
-    uses: Glyndor/.github/.github/workflows/empty-diff.yml@c958978687af37dc2d826a967d9c549589afb39f # v1.14.1
+    uses: Glyndor/.github/.github/workflows/empty-diff.yml@118244b8d758bdec6d2c5115d815dbc2e5c4f4e9 # v1.16.0
 
   pin-policy:
-    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@8517d94fde00466f59b95c5d1bd838e2ad24a8bf # v1.15.2
+    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@118244b8d758bdec6d2c5115d815dbc2e5c4f4e9 # v1.16.0
 
   # Lint and test the Python scripts that this repository ships. The
   # job name is `tests`; python-ci.yml's inner job name is `Lint & test`;
@@ -44,7 +44,7 @@ jobs:
   # rename that breaks the four consumer repositories. The 90% gate is
   # a follow-up after the rename.
   tests:
-    uses: Glyndor/.github/.github/workflows/python-ci.yml@7099f8a9c8be91fa1732fe2402268b338771233f # v1.15.0
+    uses: Glyndor/.github/.github/workflows/python-ci.yml@118244b8d758bdec6d2c5115d815dbc2e5c4f4e9 # v1.15.0
     with:
       coverage-threshold: 0
 
