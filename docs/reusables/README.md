@@ -27,6 +27,7 @@ which blocks every pull request until someone works out why.
 | [`rust-debian`](rust-debian.md) | 2 | 1 | 10 |
 | [`rust-fuzz`](rust-fuzz.md) | 1 | 0 | 7 |
 | [`rust-supply-chain`](rust-supply-chain.md) | 1 | 0 | 5 |
+| [`rust-toolchain-watch`](rust-toolchain-watch.md) | 1 | 0 | 1 |
 | [`schedule-freshness`](schedule-freshness.md) | 1 | 0 | 2 |
 | [`shell-ci`](shell-ci.md) | 2 | 1 | 6 |
 | [`workflow-lint`](workflow-lint.md) | 1 | 0 | 2 |
