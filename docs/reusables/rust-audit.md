@@ -32,7 +32,7 @@ a required check whose name nothing emits blocks every pull request.
 | Input | Type | Default | Required | Description |
 |---|---|---|---|---|
 | `working-directory` | string | `.` | no | Directory containing the Cargo workspace |
-| `toolchain` | string | `1.97` | no | Rust toolchain to pin the audit and deny jobs to |
+| `toolchain` | string | `1.98` | no | Rust toolchain to pin the audit and deny jobs to |
 | `cargo-audit-version` | string | `0.22.2` | no | Exact version of cargo-audit to install; bumped via .github releases |
 | `cargo-deny-version` | string | `0.20.2` | no | Exact version of cargo-deny to install; bumped via .github releases |
 
