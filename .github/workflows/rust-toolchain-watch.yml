@@ -1,0 +1,187 @@
+name: Rust toolchain watch (reusable)
+
+# Notifies (opens an issue) when upstream Rust ships a stable release strictly
+# newer than the toolchain the caller has pinned. The standard forbids
+# tracking `stable` and records why: an unpinned toolchain upgraded itself
+# on 2026-07-07, widened a clippy lint, and turned every open pull request
+# in podup red on a change nobody made. The producing half of that rule —
+# the pin — lives in this repo's reusables; the consuming half — a deliberate
+# bump through a new `.github` release — has had nothing proposing it, so
+# Rust sat three days stale (1.98.0 released 2026-08-18 against a `1.97`
+# pin) with nobody told.
+#
+# The shape mirrors podup's podman-version-watch: daily cron (the caller's
+# schedule), query upstream, dedupe against open issues, open a labelled
+# tracking issue when there is a newer release. A watcher that goes red
+# would interrupt unrelated work for something nobody chose to do today —
+# the open-issue shape is what makes it quiet when current and loud only
+# when an upgrade is owed.
+#
+# Where it lives: `.github` cannot open issues in itself (issues are
+# disabled here), and a central cron on `.github`'s own `GITHUB_TOKEN`
+# cannot see the caller's issue list — same shape as the cross-repo
+# pin-policy guard retired in #119. So this is a reusable the consumer
+# calls from its own scheduled workflow, and the issue it opens lands in
+# the consumer's repository.
+#
+# Upstream source: `static.rust-lang.org/dist/channel-rust-stable.toml`.
+# That is the same manifest `rustup` reads when it installs a toolchain,
+# served by the Rust project itself — no third-party service, no auth, no
+# rate limit. The CI standard allowlists exactly one third-party service
+# (repology.org, for podup's Podman watch) and adding another needs its
+# own justification; the channel file is first-party Rust infrastructure
+# and needs none. The version extracted from the file is validated against
+# a strict SemVer regex before any other use, exactly the way
+# podman-version-watch handles its third-party-supplied version.
+#
+# Add as advisory — not required — until it has been seen opening an
+# issue for the right reason, and the emitted name has been read off a
+# real run. The standard's "a gate that has never fired is not a gate"
+# rule applies in full; a check whose only state is green has proven
+# nothing.
+#
+# `concurrency:` cancels an in-flight run when a newer one starts. The
+# group key uses `github.workflow` so an unrelated caller triggering the
+# same reusable does not collide, and `github.ref` to distinguish per-ref
+# runs.
+#
+# Default shell is pinned to bash: the version comparison uses
+# `printf | sort -V`, GNU sort semantics, and a future Windows caller
+# would otherwise silently mis-compare and fail closed on an empty
+# string.
+
+on:
+  workflow_call:
+    inputs:
+      toolchain:
+        description: >-
+          The Rust toolchain this consumer is currently pinning (e.g.
+          "1.97"). The watcher opens an issue when upstream stable is
+          strictly newer than this.
+        type: string
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions: {}
+
+concurrency:
+  group: rust-toolchain-watch-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    name: rust toolchain watch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Detect a newer stable Rust than the pinned toolchain
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PINNED: ${{ inputs.toolchain }}
+        run: |
+          set -euo pipefail
+
+          # First-party channel manifest: the same file `rustup` reads to
+          # resolve a toolchain. Extract the `version = "X.Y.Z"` line that
+          # sits directly under `[pkg.rust]`; everything else in the file
+          # is per-target metadata we do not need.
+          #
+          # `curl -fsSL` fails closed on a non-2xx status, so a stale or
+          # unreachable mirror surfaces as a hard error rather than an
+          # empty `latest`.
+          raw=$(curl -fsSL --max-time 30 https://static.rust-lang.org/dist/channel-rust-stable.toml)
+          latest=$(printf '%s\n' "$raw" | awk '
+            /^\[pkg\.rust\]$/ { flag = 1; next }
+            flag && /^version = / {
+              gsub(/"/, "")
+              print $3
+              exit
+            }
+          ')
+          # LATEST is first-party-controlled, but validate anyway: a
+          # future channel-file change that surfaces a tag-shaped string
+          # here (e.g. "1.98.0-beta.1") would still parse as a SemVer
+          # candidate but is not "current stable". The strict regex
+          # forbids pre-releases and limits the shape; the rest of this
+          # script trusts the value to be exactly "MAJOR.MINOR.PATCH".
+          [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+            || { echo "::error::unexpected upstream version '$latest' — not a plain MAJOR.MINOR.PATCH"; exit 1; }
+
+          pinned="$PINNED"
+          # The caller passes the form "MAJOR.MINOR" (matching
+          # `rust-ci.yml`'s `toolchain` input default of "1.97"). Normalise
+          # so the comparator sees "MAJOR.MINOR.PATCH" on both sides.
+          case "$pinned" in
+            *.*) ;;
+            *) echo "::error::PINNED='$pinned' is not a MAJOR.MINOR form"; exit 1 ;;
+          esac
+          # Strip any suffix the caller might pass (channel date, target).
+          pinned_major_minor=$(printf '%s' "$pinned" | awk -F. '{print $1"."$2}')
+
+          echo "pinned=$pinned  upstream-stable=$latest"
+
+          # Empty comparator input → fall through to "nothing to do".
+          newer=$(printf '%s\n%s\n%s\n' "$pinned_major_minor.0" "$latest" "" | sort -V | tail -1)
+          if [ "$newer" != "$latest" ] || [ "$pinned_major_minor.0" = "$latest" ]; then
+            echo "No newer stable Rust than the pinned toolchain ($pinned)."
+            exit 0
+          fi
+
+          # Idempotent: skip if an issue for this version is already open.
+          # The title is the version plus a fixed prefix; matching it
+          # against the open-issue list keeps the watcher from nagging.
+          title="Bump pinned Rust toolchain to $latest (stable upstream)"
+          if gh issue list --state open --search "in:title $title" --json title --jq '.[].title' \
+              | grep -qxF "$title"; then
+            echo "Issue already open for Rust $latest — nothing to do."
+            exit 0
+          fi
+
+          # Major bump → full re-validation across every caller; minor /
+          # patch → lighter re-check. The owner makes the call after the
+          # issue lands; this just sizes the expected effort.
+          latest_major=${latest%%.*}; pinned_major=${pinned_major_minor%%.*}
+          kind="patch/minor re-check"
+          if [ "$latest_major" != "$pinned_major" ]; then
+            kind="MAJOR — full validation sweep + clippy lint audit"
+          fi
+
+          # Label on creation. An unlabelled issue is a process bug, and
+          # one filed by a bot is no exception — the same shape
+          # podman-version-watch follows.
+          gh issue create --title "$title" \
+            --label "type:ci" --label "prio:P2" --label "effort:M" \
+            --label "status:ready" --label "area:toolchain" \
+            --body "Upstream stable Rust **$latest** is released (pinned in \`rust-ci\`: **$pinned**).
+
+          This is **$kind**.
+
+          Bumping the toolchain follows the standard's rule: ship a new
+          \`.github\` release with the new pin, then each consumer adopts
+          it deliberately and fixes any new clippy lints on its own
+          schedule — the same buffer the SHA pin gives the workflow
+          itself. The 2026-07 incident (Rust 1.97 widened a clippy lint
+          and reddened every open PR in podup) is the failure mode this
+          process exists to prevent from recurring silently.
+
+          - [ ] Raise \`rust-ci.yml\`'s \`toolchain\` default to **$latest**
+                and cut a new \`.github\` release
+          - [ ] \`rust-audit.yml\` and \`rust-supply-chain.yml\` track the
+                same default — update in the same release
+          - [ ] Once a consumer CI has gone green on the new SHA, the
+                release tag is the trigger for every other consumer to
+                bump via Dependabot
+          - [ ] Close this issue
+
+          _Auto-filed by \`rust-toolchain-watch\` (consumable from the
+          Rust caller's scheduled workflow). To stop nagging for this
+          version without bumping, raise the \`toolchain\` input you pass
+          to this reusable to **$latest**._"
+          echo "Opened tracking issue for Rust $latest."
