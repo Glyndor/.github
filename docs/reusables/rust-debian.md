@@ -44,6 +44,8 @@ check is created.
 | `artifact-name` | string | — | no | Artifact name when upload-artifact is true |
 | `check-vendored` | boolean | `false` | no | Also run an offline build from vendored crates |
 | `offline-cargo-args` | string | — | no | Extra cargo args for the offline build (e.g. feature flags) |
+| `rust-toolchain` | string | — | no | rustup toolchain to install instead of the distro cargo/rustc (empty keeps the distro toolchain) |
+| `rust-target` | string | — | no | Extra rustup target to install (needs rust-toolchain; e.g. x86_64-unknown-linux-musl) |
 
 ---
 

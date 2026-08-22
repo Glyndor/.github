@@ -140,6 +140,23 @@ jobs:
           deb="${debs[0]}"
           echo "Built $deb"
           dpkg-deb --contents "$deb"
+
+          # What the package DECLARES, not just what it contains. Depends is
+          # generated from ${shlibs:Depends}, so it is derived at build time
+          # from the binary's shared-library needs and cannot be read off any
+          # file in the repository - the built package is the only place it
+          # exists.
+          #
+          # Glyndor/podup#1512 is why this is here. Every published .deb
+          # declared `libc6 (>= 2.39)`, so apt install failed on Debian 12
+          # (2.36) and Ubuntu 22.04 (2.35). The fix builds against musl so the
+          # substitution comes out empty - and the lane could confirm the
+          # package builds while saying nothing about the line that was the
+          # whole point. Printing it turns that claim into something a run
+          # settles instead of something a person re-measures by hand.
+          echo "--- control fields ---"
+          dpkg-deb -f "$deb"
+
           cp "$deb" "$(basename "$deb")"
 
       - name: Upload artifact
