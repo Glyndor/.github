@@ -52,7 +52,7 @@ check is created.
 | `msrv` | string | — | no | Minimum supported Rust version to verify a --locked build against (empty disables the check) |
 | `package-check` | boolean | `false` | no | Run cargo publish --dry-run on PRs to catch packaging breakage before tagging |
 | `semver-check` | boolean | `false` | no | Run cargo-semver-checks to flag public API breaks against the last published release |
-| `semver-checks-version` | string | `0.48.0` | no | Exact version of the tool; bumped via .github releases |
+| `semver-checks-version` | string | `0.50.0` | no | Exact version of the tool; bumped via .github releases |
 | `doc-warnings` | boolean | `false` | no | Build the docs with -D warnings so broken doc links fail the build |
 
 ---

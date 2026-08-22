@@ -53,7 +53,7 @@ on:
       semver-checks-version:
         description: Exact version of the tool; bumped via .github releases
         type: string
-        default: "0.48.0"
+        default: "0.50.0"
       doc-warnings:
         description: Build the docs with -D warnings so broken doc links fail the build
         type: boolean
