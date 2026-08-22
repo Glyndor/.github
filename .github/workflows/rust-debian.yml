@@ -81,6 +81,9 @@ jobs:
     env:
       PKG: ${{ inputs.package-name }}
       ARCH: ${{ inputs.arch }}
+      # Job-wide because the confirm step reads it too, to decide whether the
+      # package is allowed to declare a shared-library dependency.
+      RUST_TARGET: ${{ inputs.rust-target }}
     steps:
       - name: Install build tooling
         env:
@@ -140,6 +143,44 @@ jobs:
           deb="${debs[0]}"
           echo "Built $deb"
           dpkg-deb --contents "$deb"
+
+          # What the package DECLARES, not just what it contains. Depends is
+          # generated from ${shlibs:Depends}, so it is derived at build time
+          # from the binary's shared-library needs and cannot be read off any
+          # file in the repository - the built package is the only place it
+          # exists.
+          #
+          # Glyndor/podup#1512 is why this is here. Every published .deb
+          # declared `libc6 (>= 2.39)`, so apt install failed on Debian 12
+          # (2.36) and Ubuntu 22.04 (2.35). The fix builds against musl so the
+          # substitution comes out empty - and the lane could confirm the
+          # package builds while saying nothing about the line that was the
+          # whole point. Printing it turns that claim into something a run
+          # settles instead of something a person re-measures by hand.
+          echo "--- control fields ---"
+          dpkg-deb -f "$deb"
+
+          # And fail when the declaration is wrong, not just print it. A musl
+          # target is a static binary, so ${shlibs:Depends} must substitute to
+          # nothing and Depends must name no shared library. That property is
+          # the whole fix for Glyndor/podup#1512, and until now nothing
+          # defended it: if the build ever links dynamically again, the
+          # dpkg-shlibdeps warnings simply stop appearing and a libc6 floor
+          # comes back with every check still green. A regression here is
+          # invisible at build time and only shows up as apt refusing to
+          # install on an older release, which is the expensive place to find
+          # it.
+          case "$RUST_TARGET" in
+            *musl*)
+              depends="$(dpkg-deb -f "$deb" Depends || true)"
+              if printf '%s' "$depends" | grep -qE '(^|[[:space:],])lib[a-z0-9]'; then
+                echo "::error::built for $RUST_TARGET but the package declares a shared-library dependency: $depends"
+                exit 1
+              fi
+              echo "Depends declares no shared library, as a $RUST_TARGET build must."
+              ;;
+          esac
+
           cp "$deb" "$(basename "$deb")"
 
       - name: Upload artifact
