@@ -42,6 +42,7 @@ check is created.
 | `shellcheck-sha256` | string | `8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198` | no | sha256 of that release's linux.x86_64 tarball; travels with shellcheck-version, so overriding one without the other fails the install |
 | `test-command` | string | — | no | Command running the repository's shell test suite (skipped when empty) |
 | `apt-packages` | string | — | no | Space-separated apt packages the test suite needs |
+| `check-exec-bit` | boolean | `true` | no | Fail when a script the workflows invoke as ./path is not executable in git |
 
 ---
 
