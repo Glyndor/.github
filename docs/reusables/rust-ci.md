@@ -27,13 +27,15 @@ a required check whose name nothing emits blocks every pull request.
 | `example / Format & lint` | always |
 | `example / Test` | always |
 | `example / Test (${{ matrix.os }})` (one per matrix entry) | `inputs.extra-test-os != '[]'` |
+| `example / Extra platforms` | always |
 | `example / Coverage` | `inputs.coverage-threshold > 0` |
 | `example / MSRV (${{ inputs.msrv }})` | `inputs.msrv != ''` |
+| `example / MSRV` | always |
 | `example / Package check` | `inputs.package-check` |
 | `example / Semver checks` | `inputs.semver-check` |
 | `example / Doc warnings` | `inputs.doc-warnings` |
 
-6 of these 8 are conditional: they do not run,
+6 of these 10 are conditional: they do not run,
 and therefore emit no check, unless the input in the right-hand column says
 so. Requiring one in a ruleset without setting its input is how a phantom
 check is created.
