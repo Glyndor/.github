@@ -23,7 +23,7 @@ which blocks every pull request until someone works out why.
 | [`python-ci`](python-ci.md) | 1 | 0 | 5 |
 | [`release-verify`](release-verify.md) | 1 | 0 | 6 |
 | [`rust-audit`](rust-audit.md) | 2 | 0 | 4 |
-| [`rust-ci`](rust-ci.md) | 10 | 8 | 12 |
+| [`rust-ci`](rust-ci.md) | 10 | 6 | 12 |
 | [`rust-debian`](rust-debian.md) | 2 | 1 | 11 |
 | [`rust-fuzz`](rust-fuzz.md) | 1 | 0 | 7 |
 | [`rust-supply-chain`](rust-supply-chain.md) | 1 | 0 | 5 |

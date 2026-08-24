@@ -67,6 +67,12 @@ def header_comment(path):
     return " ".join(x for x in out if x).strip()
 
 
+# Spellings of "this job always runs". A job with no `if:` runs unconditionally;
+# so does one that spells that out, which a gate job must do to survive a failed
+# dependency.
+ALWAYS = {"always()", "${{ always() }}"}
+
+
 def emitted_checks(spec):
     """One row per job: the name a caller will see, and the condition that
     decides whether it appears at all."""
@@ -74,7 +80,11 @@ def emitted_checks(spec):
     for job_id, job in (spec.get("jobs") or {}).items():
         name = job.get("name", job_id)
         cond = job.get("if")
-        if cond is None:
+        # `if: always()` is the opposite of conditional: it is how a gate job
+        # keeps emitting its check even when the job it reports on failed or was
+        # skipped. Reading it as a condition would document exactly the jobs a
+        # ruleset CAN safely require as the ones that might not appear.
+        if cond is None or str(cond).strip() in ALWAYS:
             when = "always"
         else:
             when = f"`{str(cond).strip()}`"
