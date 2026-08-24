@@ -51,6 +51,16 @@ on:
         description: rustup toolchain to install instead of the distro cargo/rustc (empty keeps the distro toolchain)
         type: string
         default: ""
+      apt-packages:
+        # The job installs a fixed list of Debian build tooling and does not
+        # read Build-Depends, so a package needing another build-time tool has
+        # no way to ask for it. unitpm is the case: `ring` compiles C, and
+        # cross-compiling it to musl needs musl-tools, which is not a Rust
+        # dependency and so has no business in Cargo.toml.
+        description: Space-separated apt packages the build needs on top of the fixed tooling
+        type: string
+        default: ""
+
       rust-target:
         # Requires rust-toolchain: a distribution toolchain carries only its
         # own target's standard library, so `--target` cannot resolve against
@@ -89,6 +99,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
           RUST_TOOLCHAIN: ${{ inputs.rust-toolchain }}
+          APT_PACKAGES: ${{ inputs.apt-packages }}
         run: |
           apt-get update -qq
           if [ -n "$RUST_TOOLCHAIN" ]; then
@@ -97,6 +108,10 @@ jobs:
           else
             apt-get install -y --no-install-recommends \
               ca-certificates build-essential dpkg-dev debhelper cargo rustc
+          fi
+          if [ -n "$APT_PACKAGES" ]; then
+            # shellcheck disable=SC2086 # intentional word-splitting of the list
+            apt-get install -y --no-install-recommends $APT_PACKAGES
           fi
 
       - name: Install the pinned Rust toolchain
