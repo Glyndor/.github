@@ -1,0 +1,11 @@
+# Test dependencies for this repository's own suite.
+#
+# python-ci installs this file when it exists, which is how tests/ gets PyYAML.
+# tests/test_workflow_pins.py parses the reusables as YAML rather than by regex,
+# because the values it compares are quoted inconsistently across the files and a
+# regex that tolerates every form is harder to trust than a parser.
+#
+# This is a hand-typed pin like the nineteen in the workflows, so pin-watch
+# watches it too — the alternative is a watcher that misses the pin its own
+# repository added.
+pyyaml==6.0.3

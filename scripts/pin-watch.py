@@ -75,8 +75,13 @@ HOLDS: dict[str, tuple[str, str]] = {
 #
 # kind=env reads a literal `KEY: value` line in a job's env:
 # kind=input reads an on.workflow_call.inputs.<name>.default.
+# kind=requirements reads a `name==version` line in requirements.txt, which
+#   python-ci installs when the file exists. It is a hand-typed pin like the
+#   others, so it is watched like the others — a watcher that skips the pin its
+#   own repository added is the failure this file exists to prevent.
 PIN_SOURCES: list[tuple[str, str, str, str]] = [
     ("actionlint", "actionlint.yml", "env", "ACTIONLINT_VERSION"),
+    ("pyyaml-test-dep", "requirements.txt", "requirements", "pyyaml"),
     ("shellcheck", "actionlint.yml", "env", "SHELLCHECK_VERSION"),
     ("PyYAML", "docs-current.yml", "env", "PYYAML_VERSION"),
     ("bun", "bun-ci.yml", "input", "bun-version"),
@@ -185,6 +190,22 @@ def _read_input_default(text: str, input_name: str) -> str | None:
     return None
 
 
+def _read_requirement_pin(text: str, name: str) -> str | None:
+    """Read `name==version` out of a requirements file.
+
+    Only the `==` form is accepted. A range or a bare name is not a pin, and
+    reporting drift against something unpinned would be noise.
+    """
+    for line in text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        left, sep, right = line.partition("==")
+        if sep and left.strip().lower() == name.lower():
+            return right.strip()
+    return None
+
+
 def read_pins() -> dict[str, tuple[str, str]]:
     """Read every pinned value from its workflow file.
 
@@ -196,12 +217,22 @@ def read_pins() -> dict[str, tuple[str, str]]:
     pins: dict[str, tuple[str, str]] = {}
     for pin_name, source_file, kind, key in PIN_SOURCES:
         if source_file not in cache:
-            cache[source_file] = (WORKFLOWS_DIR / source_file).read_text()
+            # Most pins live under .github/workflows/; requirements.txt is at the
+            # repository root, so resolve relative to the root when the name is
+            # not a workflow.
+            path = (
+                Path(source_file)
+                if not source_file.endswith((".yml", ".yaml"))
+                else WORKFLOWS_DIR / source_file
+            )
+            cache[source_file] = path.read_text()
         text = cache[source_file]
         if kind == "env":
             v = _read_env_value(text, key)
         elif kind == "input":
             v = _read_input_default(text, key)
+        elif kind == "requirements":
+            v = _read_requirement_pin(text, key)
         else:
             raise AssertionError(f"unknown kind: {kind!r}")
         if v is None:
@@ -316,6 +347,7 @@ FETCHERS: dict = {
     "cargo-cyclonedx": lambda: upstream_crates_io("cargo-cyclonedx"),
     "cargo-about": lambda: upstream_crates_io("cargo-about"),
     "PyYAML": lambda: upstream_pypi("PyYAML"),
+    "pyyaml-test-dep": lambda: upstream_pypi("PyYAML"),
     "ruff": lambda: upstream_pypi("ruff"),
     "pytest": lambda: upstream_pypi("pytest"),
     "actionlint": lambda: upstream_gh_release("rhysd/actionlint"),
