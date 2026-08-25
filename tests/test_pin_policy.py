@@ -1,6 +1,6 @@
 """Tests for scripts/pin-policy.py.
 
-The four gaps the audit (`auditoria-tests-canales.md`) called out for action
+The four gaps the audit called out for action
 all live in this script:
 
 1. The `NONE` message for zero pins (line 290-294) — historical guard for
@@ -15,7 +15,6 @@ all live in this script:
 
 These tests exercise the real `pin-policy.py` binary as a subprocess (the
 script's hyphenated name prevents direct import without renaming, which
-import pytest
 would break the four consumers). `tests/conftest.py` installs a `gh` stub
 on PATH so no network or secret is involved; tests assert on stdout,
 stderr, and exit code.
@@ -203,8 +202,7 @@ def test_run_pin_policy_zero_pins_emits_none_message(
 
     NOTE: this test pins the *message*, not the exit code. As of the
     current `scripts/pin-policy.py`, `NONE` is printed but the script
-    still exits 0 — which is the original fail-open the audit
-    (`auditoria-tests-canales.md`) flagged. Closing the fail-open
+    still exits 0 — which is the original fail-open the audit flagged. Closing the fail-open
     (changing `if unreadable or stale: sys.exit(1)` to also trigger on
     `pins == 0`) is a separate, smaller PR that lands in the same
     series; this test catches both the regression of the message and
@@ -286,7 +284,7 @@ def test_run_pin_policy_helper_diff_emits_diff_and_exits_one(
     """A consumer whose pin's reusable bundles a helper that diverges
     between the pinned SHA and the latest tag must emit `DIFF`.
 
-    The audit (`auditoria-tests-canales.md`) flagged that
+    The audit flagged that
     `fetch_reusable_surface` only compared the workflow file, leaving
     the bundled script (`scripts/pin-policy.py`) unchecked. Today's
     pin-policy-reusable bundles exactly that helper, so without this
