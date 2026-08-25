@@ -33,6 +33,7 @@ an invention here.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -370,3 +371,158 @@ def test_read_pins_fails_when_pin_cannot_be_read(monkeypatch, tmp_path, capsys) 
     assert exc_info.value.code == 1
     assert "::error" in captured.err
     assert "missing-input" in captured.err
+
+
+# --- TASK 2: issues-disabled fallback ----------------------------------
+#
+# The watcher reports by opening an issue; this repository has issues
+# disabled. A crash with a traceback loses the findings. The fallback
+# writes the rendered body to $GITHUB_STEP_SUMMARY and exits non-zero,
+# so the run failure IS the notification. The three tests below pin the
+# three branches of that decision:
+#
+# - findings + gh says disabled  -> summary written, exit non-zero
+# - findings + gh fails for OTHER reason -> script fails loudly, NO summary
+# - no findings at all           -> exit 0, no summary written
+#
+# The IO seam stubbed is `_run_gh`, the helper that wraps
+# `subprocess.run` for every gh call — that is the seam the new
+# detection logic reads from, so a test that replaced `issue_already_open`
+# and `open_issue` directly would not exercise the detection path at all.
+
+
+_DISABLED_ISSUES_STDERR = "the 'Glyndor/.github' repository has disabled issues"
+
+
+def _disabled_issues_gh(cmd: list[str]) -> subprocess.CompletedProcess:
+    """Pretend every gh call is rejected because the repo has no issue tracker."""
+    return subprocess.CompletedProcess(
+        args=cmd,
+        returncode=1,
+        stdout="",
+        stderr=_DISABLED_ISSUES_STDERR,
+    )
+
+
+def _auth_error_gh(cmd: list[str]) -> subprocess.CompletedProcess:
+    """Pretend gh fails with an auth error — different reason, same exit code."""
+    return subprocess.CompletedProcess(
+        args=cmd,
+        returncode=4,
+        stdout="",
+        stderr=(
+            "gh: authentication required (HTTP 401)\n"
+            "To use GitHub CLI in a GitHub Actions workflow, set "
+            "the GH_TOKEN environment variable."
+        ),
+    )
+
+
+def test_findings_and_issues_disabled_writes_step_summary_and_exits_nonzero(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    """With drift and a gh that says issues are disabled, the report lands on
+    $GITHUB_STEP_SUMMARY and the script exits non-zero.
+
+    Catches: a regression that crashes the run with a traceback when
+    this repository's issue tracker is closed — the failure mode that
+    made the report invisible in the first place. The exit code
+    matters: a silent success would read as "nothing found", which is
+    the worst outcome when the report cannot be delivered through its
+    normal channel.
+    """
+    pin_watch = _load_pin_watch()
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    monkeypatch.setattr(
+        pin_watch, "read_pins", lambda: {"pytest": ("python-ci.yml", "8.0.0")}
+    )
+    monkeypatch.setattr(pin_watch, "fetch_upstream", lambda name: "8.1.0")
+    monkeypatch.setattr(pin_watch, "_run_gh", _disabled_issues_gh)
+
+    exit_code = pin_watch.main()
+    captured = capsys.readouterr()
+
+    assert exit_code != 0, (
+        f"Disabled-issues fallback must exit non-zero; got {exit_code}"
+    )
+    # The body is the same markdown that would have been the issue body:
+    # pin name, pinned value, and upstream value all land in the summary.
+    assert summary.exists(), (
+        "GITHUB_STEP_SUMMARY file must exist after a disabled-issues fallback"
+    )
+    body = summary.read_text()
+    assert "pytest" in body
+    assert "8.0.0" in body
+    assert "8.1.0" in body
+    # And the operator gets a clear message on stderr that names the cause.
+    assert "::error" in captured.err
+    assert "issues disabled" in captured.err
+
+
+def test_findings_and_other_gh_failure_does_not_trigger_fallback(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    """With drift and a gh that fails for a NON-disabled reason, the script
+    fails loudly and the disabled-issues fallback does NOT run.
+
+    Catches: a regression that collapses every gh failure into the
+    disabled-issues fallback — an auth error, a network blip and an
+    unknown error are not the same thing as a repository that has
+    deliberately closed its issue tracker, and collapsing them would
+    hide a real break. The summary file must stay empty.
+    """
+    pin_watch = _load_pin_watch()
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    monkeypatch.setattr(
+        pin_watch, "read_pins", lambda: {"pytest": ("python-ci.yml", "8.0.0")}
+    )
+    monkeypatch.setattr(pin_watch, "fetch_upstream", lambda name: "8.1.0")
+    monkeypatch.setattr(pin_watch, "_run_gh", _auth_error_gh)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        pin_watch.main()
+    capsys.readouterr()
+
+    # The disabled-issues fallback did NOT run: the summary file was
+    # never written (and even if it had been touched, the body would
+    # not be in it — the assertion is on absence, not on content).
+    assert not summary.exists() or summary.read_text() == "", (
+        "Disabled-issues fallback must NOT run for a non-disabled gh failure; "
+        f"summary file contains: {summary.read_text()!r}"
+    )
+
+
+def test_no_findings_and_issues_disabled_exits_zero_no_summary(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    """With no drift and a gh that says issues are disabled, the script
+    exits 0 and writes nothing to the step summary.
+
+    Catches: a regression that triggers the disabled-issues fallback
+    even when there are no findings to report — "nothing to report" is
+    not a failure, and writing an empty body to the summary is noise.
+    The gh stub is installed in case the script ever short-circuits
+    differently in the future; today main() returns 0 before reaching gh.
+    """
+    pin_watch = _load_pin_watch()
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    monkeypatch.setattr(
+        pin_watch, "read_pins", lambda: {"pytest": ("python-ci.yml", "8.0.0")}
+    )
+    monkeypatch.setattr(pin_watch, "fetch_upstream", lambda name: "8.0.0")
+    monkeypatch.setattr(pin_watch, "_run_gh", _disabled_issues_gh)
+
+    exit_code = pin_watch.main()
+    capsys.readouterr()
+
+    assert exit_code == 0, f"With no findings the script must exit 0; got {exit_code}"
+    assert not summary.exists() or summary.read_text() == "", (
+        "With no findings the summary file must stay empty; "
+        f"got: {summary.read_text()!r}"
+    )
