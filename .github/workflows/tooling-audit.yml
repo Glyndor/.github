@@ -1,0 +1,139 @@
+name: Tooling audit
+
+# Self-CI for this repository: opens one issue when the seven third-party
+# Rust tools the reusables install via `cargo install --locked` have
+# advisories in their bundled dependency trees. Closes the auditing
+# half of Glyndor/apt#121 — the containment half (a job that installs
+# tooling holds no secrets) is `workflow-lint`'s `tooling-isolation`
+# rule.
+#
+# The Python script lives at `scripts/tooling-audit.py` rather than as
+# a heredoc inside this file, mirroring how `pin-watch.yml` invokes
+# `scripts/pin-watch.py`: a heredoc here would force every `actionlint`
+# run on this workflow through shellcheck against the full script, and
+# the script's size hits a pathological case in shellcheck v0.11.0
+# that hangs the linter indefinitely. The separate-file form is also
+# the more reviewable shape: tooling-audit.py can be diffed and tested
+# like any other Python module, and this workflow file stays focused
+# on the schedule, the permissions and the issue it opens.
+#
+# Schedule: Wednesday 06:00 UTC. Deliberately not Tuesday 06:00 like
+# pin-watch, and not Monday 05:00 like podup's pin-watch — stacking
+# three scheduled runs on the same minute is the failure mode
+# schedule-freshness.yml exists to detect (see 2026-06-29 in the
+# header of that reusable).
+#
+# Pin reading: this workflow reads `cargo-audit-version` from
+# `rust-audit.yml` and installs that exact release via
+# `cargo install cargo-audit --version "=<pin>" --locked`, so the
+# audit runs the same cargo-audit binary the reusables install. The
+# reading uses the same `_read_input_default` helper as
+# scripts/pin-watch.py, so the pin's source-of-truth is one file. If
+# a future maintainer changes the helper, both readers move together
+# — and if a future maintainer changes only the workflow, the script
+# silently fails to read the pin, the way pin-watch.py is designed
+# to.
+#
+# Reporting: collect vulnerabilities and yanked crates per tool, open
+# ONE issue titled exactly `Advisories in the tooling CI installs`,
+# skip if an issue with that exact title is already open. Labels:
+# `type:security`, `prio:P2`, `status:ready`, `area:ci`, `effort:M`.
+# Exit 0 on a successful run, including one that finds advisories —
+# an upstream disclosure timing must not block every pull request in
+# the organisation.
+#
+# Default shell is pinned to bash: the inner `subprocess` calls in
+# the script are GNU-style and a future Windows caller would
+# otherwise silently miscompare and fail closed on an empty string.
+
+on:
+  schedule:
+    - cron: '0 6 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: tooling-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tooling-audit:
+    name: tooling audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read cargo-audit pin from rust-audit.yml
+        # The pin is read from the workflow file, NOT hardcoded here, so
+        # the same cargo-audit binary this workflow installs is also the
+        # one rust-audit.yml installs for consumers — a bump in one
+        # place cannot leave this workflow auditing a version nobody
+        # uses, the way pin-watch.py's read_pins asserts for every pin
+        # it reads. The helper is loaded from pin-watch.py by path
+        # because Python module names cannot contain hyphens; the
+        # synthetic loader name keeps the helper importable without
+        # renaming the file (the same dance tooling-audit.py uses).
+        id: read-pin
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import importlib.util
+          import sys
+
+          spec = importlib.util.spec_from_file_location(
+              "pin_watch_for_tooling_audit_workflow",
+              "scripts/pin-watch.py",
+          )
+          assert spec is not None and spec.loader is not None
+          pin_watch = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(pin_watch)
+
+          text = open(".github/workflows/rust-audit.yml").read()
+          v = pin_watch._read_input_default(text, "cargo-audit-version")
+          if v is None:
+              raise SystemExit(
+                  "could not read cargo-audit-version from rust-audit.yml"
+              )
+          print(f"version={v}")
+          PY
+
+      - name: Install cargo-audit
+        # This job installs tooling, so per `tooling-isolation` it
+        # holds no secrets. The audit binary runs against .crate files
+        # fetched from crates.io, never against a job's secrets; the
+        # build scripts a `cargo install` invokes execute over the
+        # whole dependency tree, and the only thing they could
+        # exfiltrate is what this job has — which is nothing. This
+        # is the auditing half of Glyndor/apt#121; the containment
+        # half is `workflow-lint`'s `tooling-isolation` rule keeping
+        # the other installs out of secret-holding jobs.
+        #
+        # `--version "=<pin>"` matches exactly: a bare X.Y.Z is also
+        # exact (caret matching is a Cargo.toml dependency rule, not a
+        # `cargo install` one), and the leading "=" is kept only to
+        # make the exact pin explicit at a glance — same shape as
+        # rust-audit.yml's install step.
+        env:
+          TOOL_VERSION: ${{ steps.read-pin.outputs.version }}
+        run: |
+          set -euo pipefail
+          command -v cargo-audit >/dev/null \
+            || cargo install cargo-audit --version "=$TOOL_VERSION" --locked
+
+      - name: Audit the seven pinned Rust tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 -u scripts/tooling-audit.py
