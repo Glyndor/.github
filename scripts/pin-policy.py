@@ -108,7 +108,7 @@ def gh_api_json(path):
 
 
 def call_failure(exc):
-    """Return the reason a `git api` call failed, for an operator to act on.
+    """Return the reason a `gh api` call failed, for an operator to act on.
 
     The first version of this script formatted the CalledProcessError itself,
     which prints the argv and the exit status and drops stderr — so the run
