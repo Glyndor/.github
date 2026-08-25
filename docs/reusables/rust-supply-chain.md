@@ -31,10 +31,10 @@ a required check whose name nothing emits blocks every pull request.
 | Input | Type | Default | Required | Description |
 |---|---|---|---|---|
 | `working-directory` | string | `.` | no | Directory containing the Cargo workspace |
-| `toolchain` | string | `1.97` | no | Rust toolchain to pin the SBOM and license job to |
+| `toolchain` | string | `1.98` | no | Rust toolchain to pin the SBOM and license job to |
 | `about-template` | string | `about.hbs` | no | cargo-about handlebars template |
 | `cyclonedx-version` | string | `0.5.9` | no | Exact version of cargo-cyclonedx to install; bumped via .github releases |
-| `cargo-about-version` | string | `0.9.1` | no | Exact version of cargo-about to install; bumped via .github releases |
+| `cargo-about-version` | string | `0.9.2` | no | Exact version of cargo-about to install; bumped via .github releases |
 
 ---
 
