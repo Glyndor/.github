@@ -18,11 +18,19 @@ on:
       ruff-version:
         description: ruff version to pin
         type: string
+        # Held at 0.12.0 deliberately. Measured 2026-08-24: ruff 0.16.4 reports 15
+        # findings this repository does not have at 0.12.0 — SIM115, PLW1510,
+        # EXE002, I001, UP034, UP037 across scripts/ and tests/. They are real,
+        # but they are code changes in five files, not a version bump, and one
+        # of them is a trap: PLW1510 wants an explicit `check=` on
+        # `subprocess.run`, and the tests that trip it capture `returncode` on
+        # purpose, so `check=True` would break them. Raise this with the fixes,
+        # not before. See Glyndor/podup#1526.
         default: "0.12.0"
       pytest-version:
         description: pytest version to pin
         type: string
-        default: "8.4.0"
+        default: "9.1.1"
       coverage-threshold:
         description: Minimum coverage percentage (0 disables the gate; uses pytest-cov)
         type: number

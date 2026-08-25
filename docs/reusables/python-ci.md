@@ -33,7 +33,7 @@ a required check whose name nothing emits blocks every pull request.
 | `working-directory` | string | `.` | no | Directory containing the Python project |
 | `python-version` | string | `3.13` | no | Python version |
 | `ruff-version` | string | `0.12.0` | no | ruff version to pin |
-| `pytest-version` | string | `8.4.0` | no | pytest version to pin |
+| `pytest-version` | string | `9.1.1` | no | pytest version to pin |
 | `coverage-threshold` | number | `0` | no | Minimum coverage percentage (0 disables the gate; uses pytest-cov) |
 
 ---
