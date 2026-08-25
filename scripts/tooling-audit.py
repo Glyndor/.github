@@ -61,12 +61,23 @@ that finding reaches the maintainer. Exit non-zero ONLY when the
 script itself failed — a download that did not come back, an
 unparseable `cargo audit` output, a pin it could not read, a tool it
 could not audit for a reason that was not "no bundled Cargo.lock".
+
+The advisory-not-blocking-PR rule does NOT extend to a repository
+that has deliberately closed its issue tracker. When findings exist
+AND `gh` reports "the '... repository' has disabled issues", the
+report is written to `$GITHUB_STEP_SUMMARY` instead and the run
+exits non-zero. These workflows do not run on pull requests (they
+are scheduled only), so failing one blocks nothing, and GitHub
+notifies on a failed scheduled run on the default branch. A silent
+success would read as "nothing found", which is the worst outcome
+when the report cannot be delivered through its normal channel.
 """
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -433,41 +444,120 @@ def render_body(results: list[AuditResult]) -> str:
 def issue_already_open(title: str) -> bool:
     """Return True if an open issue with this exact title exists.
 
-    If `gh issue list` fails (network blip, repo has issues disabled,
-    the token is missing the right scope), we cannot prove the issue
-    is open — assume it is NOT, so the script tries to open it. A
-    subsequent `gh issue create` will fail loudly in that case and
-    main() will exit non-zero, surfacing the real problem.
+    On a `gh` failure that says the repository has disabled issues,
+    returns False so the caller proceeds to `open_issue` (which fails
+    the same way and triggers the step-summary fallback). For any
+    OTHER `gh` failure, the function re-raises — a token without
+    permission or a network error is not the same as a repository
+    that deliberately has no issue tracker, and collapsing them
+    would hide a real break.
     """
-    try:
-        out = subprocess.check_output(
-            [
-                "gh",
-                "issue",
-                "list",
-                "--state",
-                "open",
-                "--search",
-                f"in:title {title}",
-                "--json",
-                "title",
-                "--jq",
-                ".[] | .title",
-            ],
-            text=True,
+    proc = _run_gh(
+        [
+            "gh",
+            "issue",
+            "list",
+            "--state",
+            "open",
+            "--search",
+            f"in:title {title}",
+            "--json",
+            "title",
+            "--jq",
+            ".[] | .title",
+        ]
+    )
+    if proc.returncode != 0:
+        if _gh_says_issues_disabled(proc):
+            return False
+        raise subprocess.CalledProcessError(
+            proc.returncode, proc.args, output=proc.stdout, stderr=proc.stderr
         )
-    except subprocess.CalledProcessError:
-        return False
-    titles = [line.strip() for line in out.splitlines() if line.strip()]
+    titles = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
     return title in titles
 
 
 def open_issue(title: str, body: str) -> str:
+    """Open the issue. If gh reports issues are disabled, write the
+    body to $GITHUB_STEP_SUMMARY and raise `_IssuesDisabledError` so
+    `main()` exits non-zero with a clear message — the run failure
+    is the notification when the issue channel is closed. Any OTHER
+    gh failure propagates as `subprocess.CalledProcessError`; the
+    step-summary fallback is for the disabled-issues case only.
+    """
     cmd = ["gh", "issue", "create", "--title", title, "--body", body]
     for label in ISSUE_LABELS:
         cmd.extend(["--label", label])
-    out = subprocess.check_output(cmd, text=True).strip()
-    return out
+    proc = _run_gh(cmd)
+    if proc.returncode != 0:
+        if _gh_says_issues_disabled(proc):
+            _write_to_step_summary(body)
+            raise _IssuesDisabledError(title)
+        raise subprocess.CalledProcessError(
+            proc.returncode, proc.args, output=proc.stdout, stderr=proc.stderr
+        )
+    return proc.stdout.strip()
+
+
+def _run_gh(cmd: list[str]) -> subprocess.CompletedProcess:
+    """Run a gh command with stdout+stderr captured. Never raises.
+
+    Callers inspect the return code and the combined output themselves,
+    so the "has disabled issues" fallback can match on the stderr
+    before propagating any other error.
+    """
+    return subprocess.run(cmd, capture_output=True, text=True, check=False)
+
+
+def _gh_says_issues_disabled(proc: subprocess.CompletedProcess) -> bool:
+    """True iff gh's output indicates the repository has disabled issues.
+
+    Matches on the literal phrase `has disabled issues` rather than on
+    exit code, because `gh` reuses a small set of non-zero exit codes
+    (4 for auth, 1 for "not found") across many distinct failure modes —
+    collapsing them all into "issues disabled" would hide a real break.
+    The phrase is what `gh issue list` and `gh issue create` print when
+    the repository has deliberately closed the issue channel.
+    """
+    if proc.returncode == 0:
+        return False
+    combined = (proc.stdout or "") + (proc.stderr or "")
+    return "has disabled issues" in combined
+
+
+def _write_to_step_summary(body: str) -> None:
+    """Append body to $GITHUB_STEP_SUMMARY when that env var is set.
+
+    The step summary file is the run's summary page on GitHub Actions;
+    when the repository has no issue tracker, the summary is the only
+    place the report can land. Always prints the body to stdout so it
+    is in the local log when the script is run outside CI.
+    """
+    print(body)
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+    try:
+        with open(summary_path, "a", encoding="utf-8") as f:
+            f.write(body)
+            if not body.endswith("\n"):
+                f.write("\n")
+    except OSError as e:
+        print(
+            f"::warning::could not write to GITHUB_STEP_SUMMARY ({summary_path}): {e}",
+            file=sys.stderr,
+        )
+
+
+class _IssuesDisabledError(Exception):
+    """Internal sentinel raised by `open_issue` when gh reports issues
+    are disabled on this repository.
+
+    The body has already been written to $GITHUB_STEP_SUMMARY by the
+    time this is raised. `main()` catches it to exit 1 with a clear
+    message — the run failure is the notification when the issue
+    channel is closed.
+    """
 
 
 # --- Main flow -----------------------------------------------------------
@@ -537,6 +627,21 @@ def main() -> int:
         else:
             try:
                 url = open_issue(ISSUE_TITLE, body)
+            except _IssuesDisabledError:
+                # Findings exist, the issue channel is closed, and the
+                # body has already been written to $GITHUB_STEP_SUMMARY.
+                # Exiting non-zero is the notification — a silent
+                # success would read as "nothing found", which is the
+                # worst outcome when the report cannot be delivered
+                # through its normal channel.
+                print(
+                    f"::error::{ISSUE_TITLE}: this repository has issues "
+                    f"disabled; the audit has been written to "
+                    f"GITHUB_STEP_SUMMARY instead — the run failure is "
+                    f"the notification.",
+                    file=sys.stderr,
+                )
+                return 1
             except subprocess.CalledProcessError as e:
                 # The audit data is already on stdout; the operator
                 # can see what was found. But the issue was not
