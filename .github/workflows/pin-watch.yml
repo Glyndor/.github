@@ -1,0 +1,95 @@
+name: Pin watch
+
+# Self-CI for this repository: opens a single issue when any pinned tool
+# version here has drifted from its upstream release. Glyndor/podup#1526
+# motivated this — the reusables each carry their own pins, and the
+# hand survey on 2026-08-24 found eight of nineteen drifted, one of
+# them a real defect. A hand survey is exactly what the issue says is
+# not good enough.
+#
+# The Python script lives at `scripts/pin-watch.py` rather than as a
+# heredoc inside this file, mirroring how `pin-policy-reusable.yml`
+# invokes `scripts/pin-policy.py`. A heredoc here would force every
+# `actionlint` run on this workflow through shellcheck against the full
+# script, and the script's size (well over a hundred lines) hits a
+# pathological case in shellcheck v0.11.0 that hangs the linter
+# indefinitely. The separate-file form is also the more reviewable
+# shape: pin-watch.py can be diffed and tested like any other Python
+# module, and this workflow file stays focused on the schedule, the
+# permissions and the issue it opens.
+#
+# Pin values are READ FROM the workflow files at runtime, never
+# hardcoded. Hardcoding the pin in the watcher would mean the watcher
+# can disagree with reality, which is the bug it exists to prevent.
+# Where a pin appears in more than one file (rust toolchain,
+# actionlint, shellcheck), the first file listed in scripts/pin-watch.py
+# is the canonical source — every other file is asserted equal to it
+# by tests/test_workflow_pins.py, so the watcher reads one and trusts
+# the test to enforce the rest.
+#
+# A held pin (the four entries in HOLDS in scripts/pin-watch.py) is
+# reported ONLY when the pinned value stops matching its hold version —
+# meaning somebody changed the pin and the hold note is now stale. While
+# the pin still matches the hold, the watcher is silent about it.
+# Reporting the upstream delta every Tuesday would train the reader to
+# ignore the issue, which is the failure mode the hold list exists to
+# prevent. Do not "fix" the silence by deleting the entry.
+#
+# Schedule: Tuesday 06:00 UTC. Deliberately not Monday: podup's own
+# pin-watch runs Monday 05:00, and stacking this repository's other
+# scheduled work on a single minute is the failure mode
+# schedule-freshness.yml exists to detect (see 2026-06-29 in the header
+# of that reusable).
+#
+# Reporting shape, after podup's pin-watch: collect all drifts, open
+# ONE issue titled exactly `Pinned tool versions have drifted`, skip if
+# an issue with that exact title is already open. Labels: `type:ci`,
+# `prio:P2`, `status:ready`, `area:ci`, `effort:S`. Exit 0 with a short
+# confirmation when nothing drifted.
+#
+# PSScriptAnalyzer's upstream endpoint
+# (powershellgallery.com/api/v2/FindPackagesById()) returns an Atom XML
+# feed and is awkward to parse reliably; pssa-version is therefore read
+# (so the pin is still reviewed) but its upstream is not queried, and
+# the entry sits in SKIP_UPSTREAM in scripts/pin-watch.py. If a future
+# maintainer wires a cleaner endpoint, drop the skip and add a fetcher.
+#
+# Default shell is pinned to bash: the inner `sort -V` style
+# comparators the upstream fetchers use are GNU semantics, and a future
+# Windows caller would otherwise silently mis-compare and fail closed
+# on an empty string.
+
+on:
+  schedule:
+    - cron: '0 6 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: pin-watch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pin-watch:
+    name: pin watch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Detect drift and open a tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 -u scripts/pin-watch.py

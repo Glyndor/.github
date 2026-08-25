@@ -15,12 +15,13 @@ on:
       # Pinned, not the runner's floating preinstalled Rust — see rust-ci.yml's
       # toolchain input for why an unpinned toolchain is a problem.
       #
-      # Keep this equal to rust-ci.yml's `toolchain`. It was 1.97 while rust-ci
-      # was already on 1.98, because the bump raised one and not the other and
-      # nothing compared them. A repository whose SBOM is produced by a compiler
-      # its test suite never ran is the defect podup#1487 recorded, and podup
-      # now has a test asserting its own two pins agree — nothing asserts it
-      # across these two reusables, so it is written here instead.
+      # Keep this equal to rust-ci.yml's and rust-audit.yml's `toolchain`. It
+      # was 1.97 while rust-ci was already on 1.98, because the bump raised
+      # one and not the other and nothing compared them. A repository whose
+      # SBOM is produced by a compiler its test suite never ran is the defect
+      # Glyndor/podup#1487 recorded. tests/test_workflow_pins.py asserts the
+      # three defaults agree; keep them in step on the bump PR so the test
+      # stays green.
       toolchain:
         description: Rust toolchain to pin the SBOM and license job to
         type: string
