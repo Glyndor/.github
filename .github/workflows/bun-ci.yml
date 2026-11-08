@@ -8,7 +8,7 @@ on:
         type: string
         default: "."
       bun-version:
-        description: Bun version (pin a major for reproducibility)
+        description: Exact Bun version to install; bumped via .github releases
         type: string
         default: "1.3.14"
       coverage-threshold:
