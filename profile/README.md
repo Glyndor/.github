@@ -17,8 +17,6 @@ Website: glyndor.net
 | [epistle](https://github.com/Glyndor/epistle) | Rust | Self-hosted, headless mail server (SMTP/IMAP/JMAP) |
 | [epistle-panel](https://github.com/Glyndor/epistle-panel) | TypeScript | Web admin panel for epistle |
 | [authcore](https://github.com/Glyndor/authcore) | Go | Auth primitives library: passwords, tokens, OAuth2/OIDC |
-| [unitpm](https://github.com/Glyndor/unitpm) | Go | systemd-native process manager |
-| [klyradb](https://github.com/Glyndor/klyradb) | Rust | Local database instance manager (desktop app) |
 | [specio](https://github.com/Glyndor/specio) | TypeScript | Browser extension: on-device website tech-stack detection |
 | [viden](https://github.com/Glyndor/viden) | TypeScript | Browser extension: video stream downloader |
 
