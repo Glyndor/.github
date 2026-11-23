@@ -4,13 +4,17 @@ Org-wide defaults inherited by every Glyndor repository that doesn't define its
 own: community-health files (SECURITY, CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT,
 FUNDING), issue/PR templates, the org profile, and reusable CI workflows.
 
+This file is for people who maintain a Glyndor repository and want to call a
+reusable workflow. The page people see on github.com/Glyndor is
+[`profile/README.md`](profile/README.md).
+
 ## Reusable CI workflows
 
 ```yaml
 # .github/workflows/ci.yml in any Glyndor repository
 jobs:
   rust:
-    uses: Glyndor/.github/.github/workflows/rust-ci.yml@<sha> # v1.10.1
+    uses: Glyndor/.github/.github/workflows/rust-ci.yml@<sha> # vX.Y.Z
     with:
       coverage-threshold: 70
 ```
@@ -19,10 +23,11 @@ jobs:
 - **Supply chain:** `rust-audit`, `rust-supply-chain`, `rust-debian`, `go-audit`
 - **Fuzz:** `rust-fuzz`, `go-fuzz`
 - **Release contracts:** `installer-contract`, `release-verify`
-- **Policy gates:** `dco`, `main-guard`, `line-limit`, `workflow-lint`
+- **Policy gates:** `dco`, `main-guard`, `line-limit`, `workflow-lint`, `empty-diff`, `pin-policy-reusable`
+- **Freshness:** `schedule-freshness`, `dependabot-freshness`, `rust-toolchain-watch`
 
-**[docs/reusables/](docs/reusables/) has a page per workflow** — inputs, defaults,
-and the exact status-check names each one emits. Read the check names before
+**[docs/reusables/](docs/reusables/) has a page per workflow** with its inputs,
+defaults, and the exact status-check names it emits. Read the check names before
 adding one to a ruleset: a required check is matched by name, so requiring one
 that nothing emits blocks every pull request in that repository.
 
