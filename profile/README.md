@@ -14,8 +14,8 @@ before installing, and how to verify what you installed.
 | Debian and Ubuntu | [apt](https://github.com/Glyndor/apt) | podup, podman and epistle |
 | macOS and Linux with Homebrew | [Homebrew tap](https://github.com/Glyndor/homebrew-tap) | podup |
 | Windows | [Scoop bucket](https://github.com/Glyndor/scoop-bucket) | podup |
-| RPM-based distributions | [rpm](https://github.com/Glyndor/rpm) | in preparation, nothing published yet |
-| Arch Linux | [pacman](https://github.com/Glyndor/pacman) | in preparation, nothing published yet |
+| Fedora, RHEL and openSUSE | [rpm](https://github.com/Glyndor/rpm) | podup, podman and epistle |
+| Arch Linux | [pacman](https://github.com/Glyndor/pacman) | podup and epistle |
 
 On macOS and Windows, podup needs a running `podman machine`; the
 [podup README](https://github.com/Glyndor/podup#install) has the details. The
